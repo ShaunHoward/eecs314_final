@@ -51,7 +51,19 @@ newLineLoopEnd:
 	li		$a2, 54			# read 54 bytes
 	syscall
 	
-	lw		$s1, header+34		# store the size of the data section of the images
+	lw		$s1, header+34		# store the size of the data section of the image
+	
+	#read image data into array
+	li		$v0, 9		# syscall 9, allocate heap memory
+	move 	$a0, $s1		# load size of data section
+	syscall
+	move 	$s2, $v0		# store the base address of the array in $s2
+	
+	li		$v0, 14		# syscall 14, read from file
+	move 	$a0, $s0		# load file descriptor
+	move 	$a1, $s2		# load base address of array
+	move 	$a2, $s1		# load size of data section
+	syscall
 	
 	#close file
 	move		$a0, $s0		# move the file descriptor into argument register
