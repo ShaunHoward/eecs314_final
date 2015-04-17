@@ -178,7 +178,29 @@ sat_loop:
 
 grayscale:
 	#convert colors into grayscale
-	
+	lb $t6, $t7($s2)	#load the image
+	move $t0, $zero 	#b
+	li   $t1, 2		#g
+	li   $t2, 4 		#r	
+	#average technique: we will just average the rgb values for each pixel
+average_loop:
+	#computes the gray value for a pixel
+	move $t3, $zero			#gray value
+	add $t3, $t0($t6), $t1($t6)	#add b and g
+	add $t3, $t1($t6), $t2($t6)	#add r
+	div $t3, $t3, 3			#average the sum
+	#stores the value of that pixel
+	move $t0($s2), $t3
+	move $t1($s2), $t3
+	move $t2($s2), $t3
+	#increment counters to use next pixel
+	add $t0, $t0, 6
+	add $t1, $t1, 6
+	add $t2, $t2, 6
+	#if we reach the end of the array, exit
+	beq $s1, $t2, exit
+	#else jump to start of the loop
+	j average_loop
 edge_detect:
 	#use sobel filter
 	
