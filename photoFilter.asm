@@ -42,6 +42,7 @@ newLineLoop:
 	bne		$t2, $t0, newLineLoop	# if current character != '\n', jump to loop beginning
 	li		$t0, 0			# else store null character
 	sb		$t0, inputFileName($t1) # and overwrite newline character with null
+	
 newLineLoopEnd:
 	
 	#open input file
@@ -112,10 +113,36 @@ newLineLoopEnd:
 #IMPORTANT:
 #pixel array starts at $s2. each pixel is stored as 3 hexadecimal values like 15 00 88
 #the r g b values are stored backwards like b g r, i.e. b = 15, g = 00, r = 88 from above
-#we must iterate through the array of pixels, each 24 bits or 6 bytes wide
-#first two bytes = b, second two bytes = g, third two bytes = r
-#hence, b would be 0($s2), g = 2($s2), and r = 4($s2), nextPixel = 6($s2)
+#we must iterate through the array of pixels, each 24 bits or 3 bytes wide
+#first byte = b, second byte = g, third byte = r
+#hence, b would be 0($s2), g = 1($s2), and r = 2($s2), nextPixel = 3($s2)
 ##########################################################################################
+
+#we must initialize the buffer for saving edits
+buffer_init:
+	#**here we have to dynamically find the size of the file and make a buffer of that size
+	la	$t6, buffer	#to be used as a max value
+	addi	$t6, $t6, 1131654	#find the end of the buffer 
+	la	$t7, buffer	#put the buffer in $t7 
+
+#first, write the header to the buffer
+write_header:
+
+	la $t4, header #load the addresss of the header into $t4
+	add $t3, $zero, $zero #initialize our counter to 0
+	addi $t6, $zero, 53  #the size of the header
+	
+write_header_loop:	
+
+	#load word, write values, store word, then increment address
+	lb $t5, ($t4) #load the header byte into $t5
+	sb $t5, ($t7) #store the byte in memory at address in $t7
+	
+	addi $t3, $t3, 1 #increment the counter
+	addi $t4, $t4, 1 #increment the header address
+	addi $t7, $t7, 1 #increment the buffer address
+	
+	blt $t3, $t6, write_header_loop  
 
 #Perform filtering on pixel data
 filter_init:
@@ -130,16 +157,16 @@ filter_init:
 	beq $zero, $t4, saturation
 	
 	addi $t3, $zero, 1
-	beq $t3, $t4, grayscale
+	#beq $t3, $t4, grayscale
 	
 	addi $t3, $zero, 2
-	beq $t3, $t4, edge_detect
+	#beq $t3, $t4, edge_detect
 	
 	addi $t3, $zero, 3
-	beq $t3, $t4, brightness
+	#beq $t3, $t4, brightness
 	
 	addi $t3, $zero, 4
-	beq $t3, $t4, hue
+	#beq $t3, $t4, hue
 	
 saturation:
  
@@ -149,32 +176,38 @@ saturation:
         #counter starts at 0, equations like Bi = i + B, Gi = i + G, Ri = i + R
         #the idea here is to use srl and sll, dumping excess 1's from the MSB
 	#load the current blue pixel value into $t6
-	lb $t6, $t7($s2)
+	add $t4, $zero, $zero #initialize our counter to 0
+	addi $t3, $zero, 255
 
 sat_loop:
+	
 	#normalize the percentage to 0 - 255 scale
-	mult $t5, $t5, 255
+	mult $t5, $t3
 	div $t5, $t5, 100
+	
+	lb $t6, ($t7) 
 	
 	#increment the pixel's value
 	add $t6, $t6, $t5
 	
 	#do this for now, can add loop to add each bit to a register and then write that 
 	#at end but want to test theory first
-	sb $t6, $t7($s2)
+	sb $t6, ($t7)
 	
-        #increment counter for pixel saturation loop
+	#increment counter of the saturation loop
+        addi $t4, $t4, 1
+	
+        #increment memory address
         addi $t7, $t7, 1
         
         #find what pixel we are at currently
-        div $t3, $t7, 3
+        #div $t3, $t, 3
         
-        #check if at the end of the pixel array
-        #exit when at end
-        beq $s1, $t3, exit
+        #check if not at the end of the pixel array
+        blt $t4, $s1, sat_loop
 	
-	#otherwise, jump to saturate next pixel
-	j sat_loop
+	#jump to exit
+	j exit
 	
 	#compare $t6 with $t5, 
 	
@@ -187,46 +220,8 @@ sat_loop:
         #normalize the percentage to 0 - 255 scale
 	#mult $t6, $t6, 255
 
-grayscale:
-	#convert colors into grayscale
-	lb $t6, $t7($s2)	#load the image
-	move $t0, $zero 	#b
-	li   $t1, 2		#g
-	li   $t2, 4 		#r	
-	#average technique: we will just average the rgb values for each pixel
-average_loop:
-	#computes the gray value for a pixel
-	move $t3, $zero			#gray value
-	add $t3, $t0($t6), $t1($t6)	#add b and g
-	add $t3, $t1($t6), $t2($t6)	#add r
-	div $t3, $t3, 3			#average the sum
-	#stores the value of that pixel
-	move $t0($s2), $t3
-	move $t1($s2), $t3
-	move $t2($s2), $t3
-	#increment counters to use next pixel
-	add $t0, $t0, 6
-	add $t1, $t1, 6
-	add $t2, $t2, 6
-	#if we reach the end of the array, exit
-	beq $s1, $t2, exit
-	#else jump to start of the loop
-	j average_loop
-edge_detect:
-	#use sobel filter
-	
-brightness:
-	#modify rgb values
-	
-hue:
-	
 exit:
-
-	la	$t6, buffer	#to be used as a max value
-	addi	$t6, $t6, 1131654	#find the end of the buffer 
-	la	$t7, buffer	#put the buffer in $s7
-	addi	$t7, $t7, 0x38	#start 36 bytes ahead (THIS MIGHT BE OFF), as to not modify headers
-
+		
 write_file:
 	
 	#open output file
