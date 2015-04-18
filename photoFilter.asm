@@ -1,7 +1,6 @@
 .data
 welcome:	.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
-filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters" +
- 		"are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue\n"
+filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue\n"
 filterPercent:    .asciiz "Now enter the percentage you want to wish to filter the image from 0 to 100\n"
 header: 	.space   54 	# bitmap header data stored here 
 inputFileName:	.space	128 	# name of the input file, specified by user
@@ -79,10 +78,10 @@ newLineLoopEnd:
 	li		$v0, 16			# syscall 16, close file
 	syscall
 	
-	li 		$v0, 10			# syscall 10, exit
-	syscall
-	
-read_filter_data:
+#	li 		$v0, 10			# syscall 10, exit
+#	syscall
+
+ read_filter_data:
         #print filter type string
 	li		$v0, 4			# syscall 4, print string
 	la		$a0, filterType		# load filter selection string
@@ -124,11 +123,23 @@ filter_init:
 	# $t4 == the type of filter to run (0 for saturation, 1 for grayscale, 2 for sobel edge detection, 
 	# 3 for brightness, 4 for hue)
 	# $t5 == new value (between 0 and 100 percent) that filter takes
-	beq 0, $t4, saturation
-	beq 1, $t4, grayscale
-	beq 2, $t4, edge_detect
-	beq 3, $t4, brightness
-	beq 4, $t4, hue 
+	addi $t3, $zero, -1 #no filter, just exit
+	beq $t3, $t4, exit 
+	
+	addi $t3, $zero, 0
+	beq $zero, $t4, saturation
+	
+	addi $t3, $zero, 1
+	beq $t3, $t4, grayscale
+	
+	addi $t3, $zero, 2
+	beq $t3, $t4, edge_detect
+	
+	addi $t3, $zero, 3
+	beq $t3, $t4, brightness
+	
+	addi $t3, $zero, 4
+	beq $t3, $t4, hue
 	
 saturation:
  
@@ -208,8 +219,13 @@ brightness:
 	#modify rgb values
 	
 hue:
-
+	
 exit:
+
+	la	$t6, buffer	#to be used as a max value
+	addi	$t6, $t6, 1131654	#find the end of the buffer 
+	la	$t7, buffer	#put the buffer in $s7
+	addi	$t7, $t7, 0x38	#start 36 bytes ahead (THIS MIGHT BE OFF), as to not modify headers
 
 write_file:
 	
@@ -232,18 +248,15 @@ write_file:
 	move	$a0, $s2
 	li	$v0, 16
 	syscall
-	
-exit:
+
+leave:
 	#nicely terminate program
 	li 	$v0, 10
 	syscall
 	
 # Stuff that's experimental
 #	
-#	la	$t6, buffer	#to be used as a max value
-#	addi	$t6, $t6, 1131654	#find the end of the buffer 
-#	la	$t7, buffer	#put the buffer in $s7
-#	addi	$t7, $t7, 0x38	#start 36 bytes ahead (THIS MIGHT BE OFF), as to not modify headers
+
 #
 #colorChanger:
 #	lw	$t5, 0($t7)	#load $t7's data into $t5
