@@ -220,6 +220,44 @@ sat_loop:
         #normalize the percentage to 0 - 255 scale
 	#mult $t6, $t6, 255
 
+grayscale:
+	#convert colors into grayscale
+	move $t6, $s2	#load the image
+	move $t0, $zero 	#b
+	#li   $t1, 2		#g
+	#li   $t2, 4 		#r	
+	#average technique: we will just average the rgb values for each pixel
+average_loop:
+	#computes the gray value for a pixel
+	#move $t3, $zero			#gray value
+	lb $t0, 0($t6)
+	lb $t1, 8($t6)
+	lb $t2, 16($t6)
+	add $t0, $t1, $t0	#add b and g
+	add $t0, $t2, $t0	#add r
+	div $t3, $t3, 3		#average the sum
+	# stores the value of that pixel
+	# move $t0($s2), $t3
+	# move $t1($s2), $t3
+	# move $t2($s2), $t3
+	sb $t0, 0($t6)
+	sb $t0, 8($t6)
+	sb $t0, 16($t6)
+	#increment counters to use next pixel
+	#if we reach the end of the array, exit
+	beq $s1, $t2, write_file
+	add $t6, $t6, 24
+	#else jump to start of the loop
+	j average_loop
+	
+edge_detect:
+	#use sobel filter
+	
+brightness:
+	#modify rgb values
+	
+hue:
+
 exit:
 		
 write_file:
