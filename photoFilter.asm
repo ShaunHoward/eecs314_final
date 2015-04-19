@@ -1,8 +1,9 @@
 .data
 welcome:	.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
-filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue, 5: Invert \n"
-filterPercent:    .asciiz "Now enter the percentage you want to wish to filter the image from 0 to 100\n"
+filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue, 5: Invert, 6: Shadow/Fill Light \n"
+filterPercent:    .asciiz "Enter the percentage you want to wish to saturate (0 to 100)\n"
 brightnessPrompt:    .asciiz "Enter desired brightness percentage (0 to 200)\n"
+shadowfillPrompt:    .asciiz "Enter desired shadow/fill light value (-255 to 255)\n"
 header: 	.space   54 	# bitmap header data stored here 
 inputFileName:	.space	128 	# name of the input file, specified by user
 outname: 	.asciiz  "OUTPUT_IMAGE.bmp"
@@ -89,7 +90,7 @@ newLineLoopEnd:
 
  
  read_filter_data:
- 	la $s3, buffer
+ 	
  	#add $s3,$s3,$t0
         #print filter type string
 	li		$v0, 4			# syscall 4, print string
@@ -120,7 +121,7 @@ newLineLoopEnd:
 
 #Perform filtering on pixel data
 filter_init:
-	
+	la $s3, buffer
 	# $t4 == the type of filter to run (0 for saturation, 1 for grayscale, 2 for sobel edge detection, 
 	# 3 for brightness, 4 for hue)
 	# $t5 == new value (between 0 and 100 percent) that filter takes
@@ -145,6 +146,9 @@ filter_init:
 	addi $t3, $zero, 5
 	beq $t3, $t4, invert
 	
+	addi $t3, $zero, 6
+	beq $t3, $t4, shadowfill
+	
 saturation:
  
 	#saturate each r g b value based on percentage given
@@ -162,53 +166,134 @@ saturation:
         #read filter percentage
 	li		$v0, 5			# syscall 5, read integer (0 to 100)
 	syscall
+	mtc1 $v0, $f0
+        cvt.s.w $f0, $f0
 	
+	addi $t5,$zero,100
+	mtc1 $t5, $f3
+        cvt.s.w $f3, $f3
+        
+        div.s $f0,$f0,$f3
+        
+        addi $t7,$zero,1
+	mtc1 $t7, $f8
+        cvt.s.w $f8, $f8
+        
+        mtc1 $zero, $f7
+        cvt.s.w $f7, $f7
+        move $t6, $s2	#load the image
+	move $t4, $zero
 	#store filter percentage in $t5
-	addi            $t5, $v0, 0         
 	
-	add $t4, $zero, $zero #initialize our counter to 0
-	addi $t3, $zero, 255
 
 sat_loop:
 	
-	#normalize the percentage to 0 - 255 scale
-	mult $t5, $t3
-	div $t5, $t5, 100
+	lb $t0, 0($t6)
+	lb $t1, 1($t6)
+	lb $t2, 2($t6)
 	
-	lb $t6, ($t7) 
+	sll $t0,$t0,24
+	srl $t0,$t0,24
+	sll $t1,$t1,24
+	srl $t1,$t1,24
+	sll $t2,$t2,24
+	srl $t2,$t2,24
 	
-	#increment the pixel's value
-	add $t6, $t6, $t5
+	blt $t0, $t1, t1t2max
+     	blt $t0, $t2, t2maxt1min
+     	move $s5, $t0
+     	j t1t2min
+
+t1t2min:
+	blt $t1,$t2, mint1
+	move $s6,$t2
+	j endmaxmin
 	
-	#do this for now, can add loop to add each bit to a register and then write that 
-	#at end but want to test theory first
-	sb $t6, ($t7)
+mint1:
+	move $s6,$t1
+	j endmaxmin
 	
-	#increment counter of the saturation loop
-        addi $t4, $t4, 1
+t2maxt1min:
+
+	move $s5,$t2
+	move $s6,$t1
+	j endmaxmin
 	
-        #increment memory address
-        addi $t7, $t7, 1
-        
-        #find what pixel we are at currently
-        #div $t3, $t, 3
-        
-        #check if not at the end of the pixel array
-        blt $t4, $s1, sat_loop
+t1t2max:
+	blt $t1,$t2, t2maxt0min
+	move $s5,$t1
+	j t0t2min
 	
-	#jump to exit
-	j exit
+t2maxt0min:
+	move $s5,$t2
+	move $s6,$t0
+	j endmaxmin
 	
-	#compare $t6 with $t5, 
+t0t2min:
+	blt $t0,$t2, mint0
+	move $s6,$t2
+	j endmaxmin
 	
-        #figure out the current value's percentage out of 256
-	#divu $t3, $t6, 255
+mint0:
+	move $s6,$t0
 	
-	#find difference between inputPercentage and currPercentage in percentages
-	#sub $t3, $t5, $t3
+endmaxmin:
 	
-        #normalize the percentage to 0 - 255 scale
-	#mult $t6, $t6, 255
+	mtc1 $s5, $f1
+        cvt.s.w $f1, $f1
+        mtc1 $s6, $f2
+        cvt.s.w $f2, $f2
+	
+	mtc1 $t0, $f4
+        cvt.s.w $f4, $f4
+	mtc1 $t1, $f5
+        cvt.s.w $f5, $f5
+        mtc1 $t2, $f6
+        cvt.s.w $f6, $f6
+	
+	
+	mul.s $f2,$f2,$f0
+	
+	sub.s $f4,$f4,$f2
+	sub.s $f5,$f5,$f2
+	sub.s $f6,$f6,$f2
+	sub.s $f9,$f1,$f2
+	
+	c.le.s $f2,$f7
+	bc1t skipdiv
+	div.s $f1,$f1,$f9
+	j notzero
+	
+skipdiv:
+	mov.s $f1,$f8
+	
+notzero:
+		
+	mul.s $f4,$f4,$f1
+	mul.s $f5,$f5,$f1
+	mul.s $f6,$f6,$f1
+	
+	cvt.w.s $f4, $f4
+	mfc1 $t0,$f4
+	cvt.w.s $f5, $f5
+	mfc1 $t1,$f5
+	cvt.w.s $f6, $f6
+	mfc1 $t2,$f6
+	
+	sb $t0, 0($s3)
+	sb $t1, 1($s3)
+	sb $t2, 2($s3)
+	
+	addi $t4, $t4, 3
+	#increment counters to use next pixel
+	#if we reach the end of the array, exit
+	bge $t4, $s1, write_file
+	add $t6, $t6, 3
+	add $s3, $s3, 3
+	#else jump to start of the loop
+	j sat_loop
+	
+	
 	
 nothing:
 	move $t0,$zero
@@ -232,7 +317,6 @@ nothing_loop:
 grayscale:
 	#convert colors into grayscale
 	move $t6, $s2	#load the image
-	move $t0, $zero 	#b
 	move $t4, $zero
 
 average_loop:
@@ -240,9 +324,17 @@ average_loop:
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
+	
+	sll $t0,$t0,24
+	srl $t0,$t0,24
+	sll $t1,$t1,24
+	srl $t1,$t1,24
+	sll $t2,$t2,24
+	srl $t2,$t2,24
+	
 	add $t0, $t1, $t0	#add b and g
 	add $t0, $t2, $t0	#add r
-	div $t3, $t3, 3		#average the sum
+	div $t0, $t0, 3		#average the sum
 	
 	sb $t0, 0($s3)
 	sb $t0, 1($s3)
@@ -456,6 +548,135 @@ invert_loop:
 	add $t6, $t6, 3
 	add $s3, $s3, 3
 	j invert_loop
+
+shadowfill:
+	#convert colors into grayscale
+	move $t6, $s2	#load the image
+	move $t4, $zero
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, shadowfillPrompt	# load filter selection string
+	syscall
+	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	syscall
+	move $t5,$v0
+	addi $s5,$zero,255
+	bgez $t5, fill_loop
+	sra $t1,$t5,31   
+	xor $t5,$t5,$t1   
+	sub $t5,$t5,$t1
+	j shadow_loop
+
+fill_loop:
+	lb $t0, 0($t6)
+	lb $t1, 1($t6)
+	lb $t2, 2($t6)
+	
+	sll $t7,$t0,24
+	srl $t7,$t7,24
+	sll $t8,$t1,24
+	srl $t8,$t8,24
+	sll $t9,$t2,24
+	srl $t9,$t9,24
+	
+	sub $t7,$s5,$t7
+	sub $t8,$s5,$t8
+	sub $t9,$s5,$t9
+	
+	blt $t7,$t5, fillskiponeup
+	add $t0,$t5,$t0
+	sb $t0, 0($s3)
+	j filloneup
+	
+fillskiponeup:
+	addi $t0,$zero,0xFFFFFFFF
+	sb $t0, 0($s3)
+	
+filloneup:
+
+	blt $t8,$t5, fillskiptwoup
+	add $t1,$t5,$t1
+	sb $t1, 1($s3)
+	j filltwoup
+	
+fillskiptwoup:
+	addi $t1,$zero,0xFFFFFFFF
+	sb $t1, 1($s3)
+	
+filltwoup:
+	blt $t9,$t5, fillskipthreeup
+	add $t2,$t5,$t2
+	sb $t2, 2($s3)
+	j fillthreeup
+	
+fillskipthreeup:
+	addi $t2,$zero,0xFFFFFFFF
+	sb $t2, 2($s3)
+	
+fillthreeup:
+	
+	addi $t4, $t4, 3
+	#increment counters to use next pixel
+	#if we reach the end of the array, exit
+	bge $t4, $s1, write_file
+	add $t6, $t6, 3
+	add $s3, $s3, 3
+	#else jump to start of the loop
+	j fill_loop
+	
+shadow_loop:
+
+	lb $t0, 0($t6)
+	lb $t1, 1($t6)
+	lb $t2, 2($t6)
+	
+	sll $t7,$t0,24
+	srl $t7,$t7,24
+	sll $t8,$t1,24
+	srl $t8,$t8,24
+	sll $t9,$t2,24
+	srl $t9,$t9,24
+	
+	blt $t7,$t5, shadowskiponedown
+	sub $t0,$t0,$t5
+	sb $t0, 0($s3)
+	j shadowonedown
+	
+shadowskiponedown:
+	addi $t0,$zero,0x00000000
+	sb $t0, 0($s3)
+	
+shadowonedown:
+
+	blt $t8,$t5, shadowskiptwodown
+	sub $t1,$t1,$t5
+	sb $t1, 1($s3)
+	j shadowtwodown
+	
+shadowskiptwodown:
+	addi $t1,$zero,0x00000000
+	sb $t1, 1($s3)
+	
+shadowtwodown:
+	
+	blt $t9,$t5, shadowskipthreedown
+	sub $t2,$t2,$t5
+	sb $t2, 2($s3)
+	j shadowthreedown
+	
+shadowskipthreedown:
+	addi $t2,$zero,0x00000000
+	sb $t2, 2($s3)
+	
+shadowthreedown:
+	
+	addi $t4, $t4, 3
+	#increment counters to use next pixel
+	#if we reach the end of the array, exit
+	bge $t4, $s1, write_file
+	add $t6, $t6, 3
+	add $s3, $s3, 3
+	#else jump to start of the loop
+	j shadow_loop
 
 exit:
 		
