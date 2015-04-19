@@ -1,9 +1,12 @@
 .data
 welcome:	.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
 filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue, 5: Invert, 6: Shadow/Fill Light \n"
-filterPercent:    .asciiz "Enter the percentage you want to wish to saturate (0 to 100)\n"
+filterPercent:    .asciiz "Enter the percentage you want to wish to saturate (0 to 100)  \n"
 brightnessPrompt:    .asciiz "Enter desired brightness percentage (0 to 200)\n"
 shadowfillPrompt:    .asciiz "Enter desired shadow/fill light value (-255 to 255)\n"
+redValue:    .asciiz "Enter hue modification value for red (0 to 255)\n"
+blueValue:    .asciiz "Enter hue modification value for blue (0 to 255)\n"
+greenValue:    .asciiz "Enter hue modification value for green (0 to 255)\n"
 header: 	.space   54 	# bitmap header data stored here 
 inputFileName:	.space	128 	# name of the input file, specified by user
 outname: 	.asciiz  "OUTPUT_IMAGE.bmp"
@@ -141,7 +144,7 @@ filter_init:
 	beq $t3, $t4, brightness
 	
 	addi $t3, $zero, 4
-	#beq $t3, $t4, hue
+	beq $t3, $t4, hue
 	
 	addi $t3, $zero, 5
 	beq $t3, $t4, invert
@@ -523,6 +526,60 @@ skipthree_down:
 	j brightness_loop_down
 	
 hue:
+	#convert colors into grayscale
+	move $t6, $s2	#load the image
+	move $t4, $zero
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, redValue	# load filter selection string
+	syscall
+	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	syscall
+	move $t7,$v0
+	
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, greenValue	# load filter selection string
+	syscall
+	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	syscall
+	move $t8,$v0
+	
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, blueValue	# load filter selection string
+	syscall
+	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	syscall
+	move $t9,$v0
+	
+
+hue_loop:
+	
+	lb $t0, 0($t6)
+	lb $t1, 1($t6)
+	lb $t2, 2($t6)
+	
+	sll $t0,$t0,24
+	srl $t0,$t0,24
+	sll $t1,$t1,24
+	srl $t1,$t1,24
+	sll $t2,$t2,24
+	srl $t2,$t2,24
+	
+	add $t0, $t0, $t9	#add b and g
+	add $t1, $t1, $t8
+	add $t2, $t2, $t7
+	
+	sb $t0, 0($s3)
+	sb $t1, 1($s3)
+	sb $t2, 2($s3)
+	
+	addi $t4, $t4, 3
+	#increment counters to use next pixel
+	#if we reach the end of the array, exit
+	bge $t4, $s1, write_file
+	add $t6, $t6, 3
+	add $s3, $s3, 3
+	#else jump to start of the loop
+	j hue_loop
 
 invert:
 	move $t6, $s2	#load the image
