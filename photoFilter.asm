@@ -59,8 +59,10 @@ newLineLoopEnd:
 	la		$a1, header		# load address to store data
 	li		$a2, 54			# read 54 bytes
 	syscall
-	
+	#move $s1, $v0
 	lw		$s1, header+34		# store the size of the data section of the image
+	
+	
 	
 	#read image data into array
 	li		$v0, 9		# syscall 9, allocate heap memory
@@ -82,7 +84,12 @@ newLineLoopEnd:
 #	li 		$v0, 10			# syscall 10, exit
 #	syscall
 
+ #we must initialize the buffer for saving edits
+
+ 
  read_filter_data:
+ 	la $s3, buffer
+ 	#add $s3,$s3,$t0
         #print filter type string
 	li		$v0, 4			# syscall 4, print string
 	la		$a0, filterType		# load filter selection string
@@ -95,17 +102,7 @@ newLineLoopEnd:
 	#store filter type in $t4
 	addi            $t4, $v0, 0      
 	
-	#print filter percentage string
-	li		$v0, 4			# syscall 4, print string
-	la		$a0, filterPercent	# load filter selection string
-	syscall
 	
-        #read filter percentage
-	li		$v0, 5			# syscall 5, read integer (0 to 100)
-	syscall
-	
-	#store filter percentage in $t5
-	addi            $t5, $v0, 0         
 	
 	#************ NOW THE IMAGE IS IN AN ARRAY STARTING AT $S2 **********#
 	
@@ -118,31 +115,7 @@ newLineLoopEnd:
 #hence, b would be 0($s2), g = 1($s2), and r = 2($s2), nextPixel = 3($s2)
 ##########################################################################################
 
-#we must initialize the buffer for saving edits
-buffer_init:
-	#**here we have to dynamically find the size of the file and make a buffer of that size
-	la	$t6, buffer	#to be used as a max value
-	addi	$t6, $t6, 1131654	#find the end of the buffer 
-	la	$t7, buffer	#put the buffer in $t7 
 
-#first, write the header to the buffer
-write_header:
-
-	la $t4, header #load the addresss of the header into $t4
-	add $t3, $zero, $zero #initialize our counter to 0
-	addi $t6, $zero, 53  #the size of the header
-	
-write_header_loop:	
-
-	#load word, write values, store word, then increment address
-	lb $t5, ($t4) #load the header byte into $t5
-	sb $t5, ($t7) #store the byte in memory at address in $t7
-	
-	addi $t3, $t3, 1 #increment the counter
-	addi $t4, $t4, 1 #increment the header address
-	addi $t7, $t7, 1 #increment the buffer address
-	
-	blt $t3, $t6, write_header_loop  
 
 #Perform filtering on pixel data
 filter_init:
@@ -151,13 +124,13 @@ filter_init:
 	# 3 for brightness, 4 for hue)
 	# $t5 == new value (between 0 and 100 percent) that filter takes
 	addi $t3, $zero, -1 #no filter, just exit
-	beq $t3, $t4, exit 
+	beq $t3, $t4, nothing 
 	
 	addi $t3, $zero, 0
 	beq $zero, $t4, saturation
 	
 	addi $t3, $zero, 1
-	#beq $t3, $t4, grayscale
+	beq $t3, $t4, grayscale
 	
 	addi $t3, $zero, 2
 	#beq $t3, $t4, edge_detect
@@ -176,6 +149,19 @@ saturation:
         #counter starts at 0, equations like Bi = i + B, Gi = i + G, Ri = i + R
         #the idea here is to use srl and sll, dumping excess 1's from the MSB
 	#load the current blue pixel value into $t6
+	
+	#print filter percentage string
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, filterPercent	# load filter selection string
+	syscall
+	
+        #read filter percentage
+	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	syscall
+	
+	#store filter percentage in $t5
+	addi            $t5, $v0, 0         
+	
 	add $t4, $zero, $zero #initialize our counter to 0
 	addi $t3, $zero, 255
 
@@ -219,11 +205,31 @@ sat_loop:
 	
         #normalize the percentage to 0 - 255 scale
 	#mult $t6, $t6, 255
+	
+nothing:
+	move $t0,$zero
+	move $t1,$s2
+	
+nothing_loop:
+	lb $t2, ($t1)
+	sb $t2, ($s3)
+	addi $s3,$s3,1
+	addi $t1,$t1,1
+	addi $t0,$t0,1
+	
+	blt $t0,$s1, nothing_loop
+	
+	li $v0, 1
+	move $a0,$t2
+	syscall
+	
+	j write_file
 
 grayscale:
 	#convert colors into grayscale
 	move $t6, $s2	#load the image
 	move $t0, $zero 	#b
+	move $t4, $zero
 	#li   $t1, 2		#g
 	#li   $t2, 4 		#r	
 	#average technique: we will just average the rgb values for each pixel
@@ -231,8 +237,8 @@ average_loop:
 	#computes the gray value for a pixel
 	#move $t3, $zero			#gray value
 	lb $t0, 0($t6)
-	lb $t1, 8($t6)
-	lb $t2, 16($t6)
+	lb $t1, 1($t6)
+	lb $t2, 2($t6)
 	add $t0, $t1, $t0	#add b and g
 	add $t0, $t2, $t0	#add r
 	div $t3, $t3, 3		#average the sum
@@ -240,13 +246,16 @@ average_loop:
 	# move $t0($s2), $t3
 	# move $t1($s2), $t3
 	# move $t2($s2), $t3
-	sb $t0, 0($t6)
-	sb $t0, 8($t6)
-	sb $t0, 16($t6)
+	sb $t0, 0($s3)
+	sb $t0, 1($s3)
+	sb $t0, 2($s3)
+	
+	addi $t4, $t4, 3
 	#increment counters to use next pixel
 	#if we reach the end of the array, exit
-	beq $s1, $t2, write_file
-	add $t6, $t6, 24
+	bge $t4, $s1, write_file
+	add $t6, $t6, 3
+	add $s3, $s3, 3
 	#else jump to start of the loop
 	j average_loop
 	
@@ -268,13 +277,18 @@ write_file:
 	li	$a1, 1		#1 to write, 0 to read
 	li	$a2, 0
 	syscall
-	move	$s2, $v0	#output file descriptor in $s2
+	move	$t1, $v0	#output file descriptor in $s2
 	
+	li	$v0, 15		#prep $v0 for write syscall
+	move 	$a0, $t1
+	la	$a1, header
+	addi    $a2,$zero,54
+	syscall
 	#write to output file
 	li	$v0, 15		#prep $v0 for write syscall
-	move 	$a0, $s2
+	move 	$a0, $t1
 	la	$a1, buffer
-	li	$a2, 1131654
+	move   $a2,$s1
 	syscall
 	
 	#close file
