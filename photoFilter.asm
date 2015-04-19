@@ -1,7 +1,8 @@
 .data
 welcome:	.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
-filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue\n"
+filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue, 5: Invert \n"
 filterPercent:    .asciiz "Now enter the percentage you want to wish to filter the image from 0 to 100\n"
+brightnessPrompt:    .asciiz "Enter desired brightness percentage (0 to 200)\n"
 header: 	.space   54 	# bitmap header data stored here 
 inputFileName:	.space	128 	# name of the input file, specified by user
 outname: 	.asciiz  "OUTPUT_IMAGE.bmp"
@@ -83,6 +84,9 @@ newLineLoopEnd:
 	
 #	li 		$v0, 10			# syscall 10, exit
 #	syscall
+
+ #we must initialize the buffer for saving edits
+
  
  read_filter_data:
  	la $s3, buffer
@@ -98,6 +102,8 @@ newLineLoopEnd:
 	
 	#store filter type in $t4
 	addi            $t4, $v0, 0      
+	
+	
 	
 	#************ NOW THE IMAGE IS IN AN ARRAY STARTING AT $S2 **********#
 	
@@ -131,10 +137,13 @@ filter_init:
 	#beq $t3, $t4, edge_detect
 	
 	addi $t3, $zero, 3
-	#beq $t3, $t4, brightness
+	beq $t3, $t4, brightness
 	
 	addi $t3, $zero, 4
 	#beq $t3, $t4, hue
+	
+	addi $t3, $zero, 5
+	beq $t3, $t4, invert
 	
 saturation:
  
@@ -159,8 +168,6 @@ saturation:
 	
 	add $t4, $zero, $zero #initialize our counter to 0
 	addi $t3, $zero, 255
-        move $t4, $zero
-	move $t7, $s2	#load the image
 
 sat_loop:
 	
@@ -175,20 +182,19 @@ sat_loop:
 	
 	#do this for now, can add loop to add each bit to a register and then write that 
 	#at end but want to test theory first
-	sb $t6, ($s3)
+	sb $t6, ($t7)
 	
 	#increment counter of the saturation loop
         addi $t4, $t4, 1
 	
-        #increment memory address     
-        add $s3, $s3, 3        
-	add $t7, $t7, 1
+        #increment memory address
+        addi $t7, $t7, 1
         
         #find what pixel we are at currently
         #div $t3, $t, 3
         
         #check if not at the end of the pixel array
-        bge $t4, $s1, sat_loop
+        blt $t4, $s1, sat_loop
 	
 	#jump to exit
 	j exit
@@ -228,22 +234,16 @@ grayscale:
 	move $t6, $s2	#load the image
 	move $t0, $zero 	#b
 	move $t4, $zero
-	#li   $t1, 2		#g
-	#li   $t2, 4 		#r	
-	#average technique: we will just average the rgb values for each pixel
+
 average_loop:
-	#computes the gray value for a pixel
-	#move $t3, $zero			#gray value
+	
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
 	add $t0, $t1, $t0	#add b and g
 	add $t0, $t2, $t0	#add r
 	div $t3, $t3, 3		#average the sum
-	# stores the value of that pixel
-	# move $t0($s2), $t3
-	# move $t1($s2), $t3
-	# move $t2($s2), $t3
+	
 	sb $t0, 0($s3)
 	sb $t0, 1($s3)
 	sb $t0, 2($s3)
@@ -261,9 +261,201 @@ edge_detect:
 	#use sobel filter
 	
 brightness:
-	#modify rgb values
+	#convert colors into grayscale
+	move $t6, $s2	#load the image
+	move $t4, $zero
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, brightnessPrompt	# load filter selection string
+	syscall
+	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	syscall
+	move $t5,$v0
+	addi $s5,$zero,255
+	mtc1 $s5, $f10
+        cvt.s.w $f10, $f10
+        addi $t7, $zero, 100
+	bge $t5, $t7 brightness_loop_up
+	j brightness_loop_down
+
+brightness_loop_up:
+	#computes the gray value for a pixel
+	#move $t3, $zero			#gray value
+	lb $t0, 0($t6)
+	lb $t1, 1($t6)
+	lb $t2, 2($t6)
+	
+	mtc1 $t5, $f1
+        cvt.s.w $f1, $f1
+	mtc1 $t7, $f2
+        cvt.s.w $f2, $f2
+        
+	
+	div.s $f1,$f1,$f2
+	
+	sll $t0,$t0,24
+	srl $t0,$t0,24
+	sll $t1,$t1,24
+	srl $t1,$t1,24
+	sll $t2,$t2,24
+	srl $t2,$t2,24
+	
+	mtc1 $t0, $f4
+        cvt.s.w $f4, $f4
+	mtc1 $t1, $f5
+        cvt.s.w $f5, $f5
+        mtc1 $t2, $f6
+        cvt.s.w $f6, $f6
+	
+	
+	mul.s $f4,$f4,$f1
+	mul.s $f5,$f5,$f1
+	mul.s $f6,$f6,$f1
+	
+	addi $t0, $zero, 0xFFFFFFFF
+	addi $t1, $zero, 0xFFFFFFFF
+	addi $t2, $zero, 0xFFFFFFFF
+	
+	c.lt.s $f10,$f4
+	bc1t skipone_up
+	
+	cvt.w.s $f4, $f4
+	mfc1 $t0,$f4
+	
+skipone_up:
+	c.lt.s $f10,$f5
+	bc1t skiptwo_up
+	
+	cvt.w.s $f5, $f5
+	mfc1 $t1,$f5
+	
+skiptwo_up:
+
+	c.lt.s $f10,$f6
+	bc1t skipthree_up
+	
+	cvt.w.s $f6, $f6
+	mfc1 $t2,$f6
+	
+skipthree_up:
+	
+	#mul $t0,$t0,$t5
+	#mul $t1,$t1,$t5
+	#mul $t2,$t2,$t5
+		#average the sum
+	sb $t0, 0($s3)
+	sb $t1, 1($s3)
+	sb $t2, 2($s3)
+	
+	addi $t4, $t4, 3
+	#increment counters to use next pixel
+	#if we reach the end of the array, exit
+	bge $t4, $s1, write_file
+	add $t6, $t6, 3
+	add $s3, $s3, 3
+	#else jump to start of the loop
+	j brightness_loop_up
+	
+brightness_loop_down:
+	#computes the gray value for a pixel
+	lb $t0, 0($t6)
+	lb $t1, 1($t6)
+	lb $t2, 2($t6)
+	
+	mtc1 $t5, $f1
+        cvt.s.w $f1, $f1
+	mtc1 $t7, $f2
+        cvt.s.w $f2, $f2
+        
+	
+	div.s $f1,$f1,$f2
+	
+	sll $t0,$t0,24
+	srl $t0,$t0,24
+	sll $t1,$t1,24
+	srl $t1,$t1,24
+	sll $t2,$t2,24
+	srl $t2,$t2,24
+	
+	mtc1 $zero, $f0
+        cvt.s.w $f0, $f0
+	mtc1 $t0, $f4
+        cvt.s.w $f4, $f4
+	mtc1 $t1, $f5
+        cvt.s.w $f5, $f5
+        mtc1 $t2, $f6
+        cvt.s.w $f6, $f6
+	
+	
+	mul.s $f4,$f4,$f1
+	mul.s $f5,$f5,$f1
+	mul.s $f6,$f6,$f1
+	
+	addi $t0, $zero, 0x00000000
+	addi $t1, $zero, 0x00000000
+	addi $t2, $zero, 0x00000000
+	
+	c.lt.s $f4,$f0
+	bc1t skipone_down
+	
+	cvt.w.s $f4, $f4
+	mfc1 $t0,$f4
+	
+skipone_down:
+	c.lt.s $f5,$f0
+	bc1t skiptwo_down
+	
+	cvt.w.s $f5, $f5
+	mfc1 $t1,$f5
+	
+skiptwo_down:
+
+	c.lt.s $f6,$f0
+	bc1t skipthree_down
+	
+	cvt.w.s $f6, $f6
+	mfc1 $t2,$f6
+	
+skipthree_down:
+	
+	sb $t0, 0($s3)
+	sb $t1, 1($s3)
+	sb $t2, 2($s3)
+	
+	addi $t4, $t4, 3
+	#increment counters to use next pixel
+	#if we reach the end of the array, exit
+	bge $t4, $s1, write_file
+	add $t6, $t6, 3
+	add $s3, $s3, 3
+	#else jump to start of the loop
+	j brightness_loop_down
 	
 hue:
+
+invert:
+	move $t6, $s2	#load the image
+	move $t0, $zero 	#b
+	move $t4, $zero
+	addi $t5,$zero,0xFFFFFFFF
+
+invert_loop:
+	lb $t0, 0($t6)
+	lb $t1, 1($t6)
+	lb $t2, 2($t6)
+	
+	sub $t0, $t5, $t0 	#add b and g
+	sub $t1, $t5, $t1
+	sub $t2, $t5, $t2
+	
+	sb $t0, 0($s3)
+	sb $t1, 1($s3)
+	sb $t2, 2($s3)
+	
+	addi $t4, $t4, 3
+	bge $t4, $s1, write_file
+	add $t6, $t6, 3
+	add $s3, $s3, 3
+	j invert_loop
 
 exit:
 		
