@@ -83,9 +83,6 @@ newLineLoopEnd:
 	
 #	li 		$v0, 10			# syscall 10, exit
 #	syscall
-
- #we must initialize the buffer for saving edits
-
  
  read_filter_data:
  	la $s3, buffer
@@ -101,8 +98,6 @@ newLineLoopEnd:
 	
 	#store filter type in $t4
 	addi            $t4, $v0, 0      
-	
-	
 	
 	#************ NOW THE IMAGE IS IN AN ARRAY STARTING AT $S2 **********#
 	
@@ -164,6 +159,8 @@ saturation:
 	
 	add $t4, $zero, $zero #initialize our counter to 0
 	addi $t3, $zero, 255
+        move $t4, $zero
+	move $t7, $s2	#load the image
 
 sat_loop:
 	
@@ -178,19 +175,20 @@ sat_loop:
 	
 	#do this for now, can add loop to add each bit to a register and then write that 
 	#at end but want to test theory first
-	sb $t6, ($t7)
+	sb $t6, ($s3)
 	
 	#increment counter of the saturation loop
         addi $t4, $t4, 1
 	
-        #increment memory address
-        addi $t7, $t7, 1
+        #increment memory address     
+        add $s3, $s3, 3        
+	add $t7, $t7, 1
         
         #find what pixel we are at currently
         #div $t3, $t, 3
         
         #check if not at the end of the pixel array
-        blt $t4, $s1, sat_loop
+        bge $t4, $s1, sat_loop
 	
 	#jump to exit
 	j exit
