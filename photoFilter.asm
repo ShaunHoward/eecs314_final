@@ -20,6 +20,7 @@ buffer:		.space	1	# just here so that there are no compile time errors
 #
 #	$s0 - the file descriptor
 #	$s1 - the size of the data section of the image (after 54 byte offset)
+#       $s2 - the pixel array of the bmp image
 #######################################################################################################
 .text
 main:
@@ -86,12 +87,7 @@ newLineLoopEnd:
 	li		$v0, 16			# syscall 16, close file
 	syscall
 	
-#	li 		$v0, 10			# syscall 10, exit
-#	syscall
-
- #we must initialize the buffer for saving edits
-
- 
+#determine the filter the user wants to run by input
  read_filter_data:
  	
  	#add $s3,$s3,$t0
@@ -107,8 +103,6 @@ newLineLoopEnd:
 	#store filter type in $t4
 	addi            $t4, $v0, 0      
 	
-	
-	
 	#************ NOW THE IMAGE IS IN AN ARRAY STARTING AT $S2 **********#
 	
 ##########################################################################################
@@ -120,14 +114,14 @@ newLineLoopEnd:
 #hence, b would be 0($s2), g = 1($s2), and r = 2($s2), nextPixel = 3($s2)
 ##########################################################################################
 
-
-
 #Perform filtering on pixel data
+# $t4 = the type of filter to run (0 for saturation, 1 for grayscale, 2 for sobel edge detection, 
+# 3 for brightness, 4 for hue, 5 for inversion, 6 for shadow fill)
 filter_init:
-	la $s3, buffer
-	# $t4 == the type of filter to run (0 for saturation, 1 for grayscale, 2 for sobel edge detection, 
-	# 3 for brightness, 4 for hue)
-	# $t5 == new value (between 0 and 100 percent) that filter takes
+
+	la $s3, buffer  #load the address of the buffer into $s3
+	
+
 	addi $t3, $zero, -1 #no filter, just exit
 	beq $t3, $t4, nothing 
 	
@@ -162,12 +156,12 @@ saturation:
 	#load the current blue pixel value into $t6
 	
 	#print filter percentage string
-	li		$v0, 4			# syscall 4, print string
-	la		$a0, filterPercent	# load filter selection string
+	li $v0, 4			# syscall 4, print string
+	la $a0, filterPercent	# load filter selection string
 	syscall
 	
         #read filter percentage
-	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer (0 to 100)
 	syscall
 	mtc1 $v0, $f0
         cvt.s.w $f0, $f0
@@ -208,6 +202,7 @@ sat_loop:
      	j t1t2min
 
 t1t2min:
+
 	blt $t1,$t2, mint1
 	move $s6,$t2
 	j endmaxmin
@@ -223,16 +218,19 @@ t2maxt1min:
 	j endmaxmin
 	
 t1t2max:
+
 	blt $t1,$t2, t2maxt0min
 	move $s5,$t1
 	j t0t2min
 	
 t2maxt0min:
+
 	move $s5,$t2
 	move $s6,$t0
 	j endmaxmin
 	
 t0t2min:
+
 	blt $t0,$t2, mint0
 	move $s6,$t2
 	j endmaxmin
@@ -296,15 +294,15 @@ notzero:
 	#else jump to start of the loop
 	j sat_loop
 	
-	
-	
 nothing:
+
 	move $t0,$zero
 	move $t1,$s2
 	
 nothing_loop:
-	lb $t2, ($t1)
-	sb $t2, ($s3)
+
+	lb $t2,($t1)
+	sb $t2,($s3)
 	addi $s3,$s3,1
 	addi $t1,$t1,1
 	addi $t0,$t0,1
@@ -318,6 +316,7 @@ nothing_loop:
 	j write_file
 
 grayscale:
+
 	#convert colors into grayscale
 	move $t6, $s2	#load the image
 	move $t4, $zero
@@ -356,23 +355,25 @@ edge_detect:
 	#use sobel filter
 	
 brightness:
+
 	#convert colors into grayscale
 	move $t6, $s2	#load the image
 	move $t4, $zero
-	li		$v0, 4			# syscall 4, print string
-	la		$a0, brightnessPrompt	# load filter selection string
+	li $v0, 4			# syscall 4, print string
+	la $a0, brightnessPrompt	# load filter selection string
 	syscall
-	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer (0 to 100)
 	syscall
-	move $t5,$v0
-	addi $s5,$zero,255
+	move $t5, $v0
+	addi $s5, $zero, 255
 	mtc1 $s5, $f10
         cvt.s.w $f10, $f10
         addi $t7, $zero, 100
-	bge $t5, $t7 brightness_loop_up
+	bge $t5, $t7, brightness_loop_up
 	j brightness_loop_down
 
 brightness_loop_up:
+
 	#computes the gray value for a pixel
 	#move $t3, $zero			#gray value
 	lb $t0, 0($t6)
@@ -384,15 +385,14 @@ brightness_loop_up:
 	mtc1 $t7, $f2
         cvt.s.w $f2, $f2
         
+	div.s $f1, $f1, $f2
 	
-	div.s $f1,$f1,$f2
-	
-	sll $t0,$t0,24
-	srl $t0,$t0,24
-	sll $t1,$t1,24
-	srl $t1,$t1,24
-	sll $t2,$t2,24
-	srl $t2,$t2,24
+	sll $t0, $t0, 24
+	srl $t0, $t0, 24
+	sll $t1, $t1, 24
+	srl $t1, $t1, 24
+	sll $t2, $t2, 24
+	srl $t2, $t2, 24
 	
 	mtc1 $t0, $f4
         cvt.s.w $f4, $f4
@@ -401,42 +401,38 @@ brightness_loop_up:
         mtc1 $t2, $f6
         cvt.s.w $f6, $f6
 	
-	
-	mul.s $f4,$f4,$f1
-	mul.s $f5,$f5,$f1
-	mul.s $f6,$f6,$f1
+	mul.s $f4, $f4, $f1
+	mul.s $f5, $f5, $f1
+	mul.s $f6, $f6, $f1
 	
 	addi $t0, $zero, 0xFFFFFFFF
 	addi $t1, $zero, 0xFFFFFFFF
 	addi $t2, $zero, 0xFFFFFFFF
 	
-	c.lt.s $f10,$f4
+	c.lt.s $f10, $f4
 	bc1t skipone_up
 	
 	cvt.w.s $f4, $f4
-	mfc1 $t0,$f4
+	mfc1 $t0, $f4
 	
 skipone_up:
-	c.lt.s $f10,$f5
+
+	c.lt.s $f10, $f5
 	bc1t skiptwo_up
 	
 	cvt.w.s $f5, $f5
-	mfc1 $t1,$f5
+	mfc1 $t1, $f5
 	
 skiptwo_up:
 
-	c.lt.s $f10,$f6
+	c.lt.s $f10, $f6
 	bc1t skipthree_up
 	
 	cvt.w.s $f6, $f6
-	mfc1 $t2,$f6
+	mfc1 $t2, $f6
 	
 skipthree_up:
-	
-	#mul $t0,$t0,$t5
-	#mul $t1,$t1,$t5
-	#mul $t2,$t2,$t5
-		#average the sum
+
 	sb $t0, 0($s3)
 	sb $t1, 1($s3)
 	sb $t2, 2($s3)
@@ -451,6 +447,7 @@ skipthree_up:
 	j brightness_loop_up
 	
 brightness_loop_down:
+
 	#computes the gray value for a pixel
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
@@ -461,15 +458,14 @@ brightness_loop_down:
 	mtc1 $t7, $f2
         cvt.s.w $f2, $f2
         
+	div.s $f1, $f1, $f2
 	
-	div.s $f1,$f1,$f2
-	
-	sll $t0,$t0,24
-	srl $t0,$t0,24
-	sll $t1,$t1,24
-	srl $t1,$t1,24
-	sll $t2,$t2,24
-	srl $t2,$t2,24
+	sll $t0, $t0, 24
+	srl $t0, $t0, 24
+	sll $t1, $t1, 24
+	srl $t1, $t1, 24
+	sll $t2, $t2, 24
+	srl $t2, $t2, 24
 	
 	mtc1 $zero, $f0
         cvt.s.w $f0, $f0
@@ -481,34 +477,35 @@ brightness_loop_down:
         cvt.s.w $f6, $f6
 	
 	
-	mul.s $f4,$f4,$f1
-	mul.s $f5,$f5,$f1
-	mul.s $f6,$f6,$f1
+	mul.s $f4, $f4, $f1
+	mul.s $f5, $f5, $f1
+	mul.s $f6, $f6, $f1
 	
 	addi $t0, $zero, 0x00000000
 	addi $t1, $zero, 0x00000000
 	addi $t2, $zero, 0x00000000
 	
-	c.lt.s $f4,$f0
+	c.lt.s $f4, $f0
 	bc1t skipone_down
 	
 	cvt.w.s $f4, $f4
-	mfc1 $t0,$f4
+	mfc1 $t0, $f4
 	
 skipone_down:
-	c.lt.s $f5,$f0
+
+	c.lt.s $f5, $f0
 	bc1t skiptwo_down
 	
 	cvt.w.s $f5, $f5
-	mfc1 $t1,$f5
+	mfc1 $t1, $f5
 	
 skiptwo_down:
 
-	c.lt.s $f6,$f0
+	c.lt.s $f6, $f0
 	bc1t skipthree_down
 	
 	cvt.w.s $f6, $f6
-	mfc1 $t2,$f6
+	mfc1 $t2, $f6
 	
 skipthree_down:
 	
@@ -529,24 +526,24 @@ hue:
 	#convert colors into grayscale
 	move $t6, $s2	#load the image
 	move $t4, $zero
-	li		$v0, 4			# syscall 4, print string
-	la		$a0, redValue	# load filter selection string
+	li $v0, 4			# syscall 4, print string
+	la $a0, redValue	# load filter selection string
 	syscall
-	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer (0 to 100)
 	syscall
 	move $t7,$v0
 	
-	li		$v0, 4			# syscall 4, print string
-	la		$a0, greenValue	# load filter selection string
+	li $v0, 4			# syscall 4, print string
+	la $a0, greenValue	# load filter selection string
 	syscall
-	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer (0 to 100)
 	syscall
 	move $t8,$v0
 	
-	li		$v0, 4			# syscall 4, print string
-	la		$a0, blueValue	# load filter selection string
+	li $v0, 4			# syscall 4, print string
+	la $a0, blueValue	# load filter selection string
 	syscall
-	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer (0 to 100)
 	syscall
 	move $t9,$v0
 	
@@ -557,12 +554,12 @@ hue_loop:
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
 	
-	sll $t0,$t0,24
-	srl $t0,$t0,24
-	sll $t1,$t1,24
-	srl $t1,$t1,24
-	sll $t2,$t2,24
-	srl $t2,$t2,24
+	sll $t0, $t0, 24
+	srl $t0, $t0, 24
+	sll $t1, $t1, 24
+	srl $t1, $t1, 24
+	sll $t2, $t2, 24
+	srl $t2, $t2, 24
 	
 	add $t0, $t0, $t9	#add b and g
 	add $t1, $t1, $t8
@@ -582,12 +579,14 @@ hue_loop:
 	j hue_loop
 
 invert:
+
 	move $t6, $s2	#load the image
-	move $t0, $zero 	#b
+	move $t0, $zero 	
 	move $t4, $zero
-	addi $t5,$zero,0xFFFFFFFF
+	addi $t5, $zero, 0xFFFFFFFF
 
 invert_loop:
+
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
@@ -607,66 +606,72 @@ invert_loop:
 	j invert_loop
 
 shadowfill:
+
 	#convert colors into grayscale
 	move $t6, $s2	#load the image
 	move $t4, $zero
-	li		$v0, 4			# syscall 4, print string
-	la		$a0, shadowfillPrompt	# load filter selection string
+	li $v0, 4			# syscall 4, print string
+	la $a0, shadowfillPrompt	# load filter selection string
 	syscall
-	li		$v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer (0 to 100)
 	syscall
-	move $t5,$v0
-	addi $s5,$zero,255
+	move $t5, $v0
+	addi $s5, $zero, 255
 	bgez $t5, fill_loop
-	sra $t1,$t5,31   
-	xor $t5,$t5,$t1   
-	sub $t5,$t5,$t1
+	sra $t1, $t5, 31   
+	xor $t5, $t5, $t1   
+	sub $t5, $t5, $t1
 	j shadow_loop
 
 fill_loop:
+
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
 	
-	sll $t7,$t0,24
-	srl $t7,$t7,24
-	sll $t8,$t1,24
-	srl $t8,$t8,24
-	sll $t9,$t2,24
-	srl $t9,$t9,24
+	sll $t7, $t0, 24
+	srl $t7, $t7, 24
+	sll $t8, $t1, 24
+	srl $t8, $t8, 24
+	sll $t9, $t2, 24
+	srl $t9, $t9, 24
 	
-	sub $t7,$s5,$t7
-	sub $t8,$s5,$t8
-	sub $t9,$s5,$t9
+	sub $t7, $s5, $t7
+	sub $t8, $s5, $t8
+	sub $t9, $s5, $t9
 	
-	blt $t7,$t5, fillskiponeup
-	add $t0,$t5,$t0
+	blt $t7, $t5, fillskiponeup
+	add $t0, $t5, $t0
 	sb $t0, 0($s3)
 	j filloneup
 	
 fillskiponeup:
-	addi $t0,$zero,0xFFFFFFFF
+
+	addi $t0, $zero, 0xFFFFFFFF
 	sb $t0, 0($s3)
 	
 filloneup:
 
-	blt $t8,$t5, fillskiptwoup
-	add $t1,$t5,$t1
+	blt $t8, $t5, fillskiptwoup
+	add $t1, $t5, $t1
 	sb $t1, 1($s3)
 	j filltwoup
 	
 fillskiptwoup:
-	addi $t1,$zero,0xFFFFFFFF
+
+	addi $t1, $zero, 0xFFFFFFFF
 	sb $t1, 1($s3)
 	
 filltwoup:
-	blt $t9,$t5, fillskipthreeup
-	add $t2,$t5,$t2
+
+	blt $t9, $t5, fillskipthreeup
+	add $t2, $t5, $t2
 	sb $t2, 2($s3)
 	j fillthreeup
 	
 fillskipthreeup:
-	addi $t2,$zero,0xFFFFFFFF
+
+	addi $t2, $zero, 0xFFFFFFFF
 	sb $t2, 2($s3)
 	
 fillthreeup:
@@ -686,42 +691,45 @@ shadow_loop:
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
 	
-	sll $t7,$t0,24
-	srl $t7,$t7,24
-	sll $t8,$t1,24
-	srl $t8,$t8,24
-	sll $t9,$t2,24
-	srl $t9,$t9,24
+	sll $t7, $t0, 24
+	srl $t7, $t7, 24
+	sll $t8, $t1, 24
+	srl $t8, $t8, 24
+	sll $t9, $t2, 24
+	srl $t9, $t9, 24
 	
-	blt $t7,$t5, shadowskiponedown
-	sub $t0,$t0,$t5
+	blt $t7, $t5, shadowskiponedown
+	sub $t0, $t0, $t5
 	sb $t0, 0($s3)
 	j shadowonedown
 	
 shadowskiponedown:
-	addi $t0,$zero,0x00000000
+
+	addi $t0, $zero, 0x00000000
 	sb $t0, 0($s3)
 	
 shadowonedown:
 
-	blt $t8,$t5, shadowskiptwodown
-	sub $t1,$t1,$t5
+	blt $t8, $t5, shadowskiptwodown
+	sub $t1, $t1, $t5
 	sb $t1, 1($s3)
 	j shadowtwodown
 	
 shadowskiptwodown:
-	addi $t1,$zero,0x00000000
+
+	addi $t1, $zero, 0x00000000
 	sb $t1, 1($s3)
 	
 shadowtwodown:
 	
-	blt $t9,$t5, shadowskipthreedown
-	sub $t2,$t2,$t5
+	blt $t9, $t5, shadowskipthreedown
+	sub $t2, $t2, $t5
 	sb $t2, 2($s3)
 	j shadowthreedown
 	
 shadowskipthreedown:
-	addi $t2,$zero,0x00000000
+
+	addi $t2, $zero, 0x00000000
 	sb $t2, 2($s3)
 	
 shadowthreedown:
@@ -768,17 +776,3 @@ leave:
 	#nicely terminate program
 	li 	$v0, 10
 	syscall
-	
-# Stuff that's experimental
-#	
-
-#
-#colorChanger:
-#	lw	$t5, 0($t7)	#load $t7's data into $t5
-#	andi	$t5, 0xFF0000		#Let's make some colors disappear
-#	#sll	$t5, $t5, 5	#mult $t5 by 2^5, let's see what happens
-#	andi	$t5, $t5,0xFFFFFF	#get rid of any non-24 bit results
-#	sw	$t5, 0($t7)	#put the modified value back
-#	addi	$t7, $t7, 4	#prep $t7 to read the next word
-#	blt 	$t7, $t6, colorChanger #might be ble
-
