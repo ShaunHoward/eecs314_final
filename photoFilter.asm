@@ -180,10 +180,9 @@ saturation:
         cvt.s.w $f7, $f7
         move $t6, $s2	#load the image
 	move $t4, $zero
-	#store filter percentage in $t5
 	
 
-sat_loop:
+sat_loop:  #Start the saturation loop
 	
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
@@ -196,6 +195,7 @@ sat_loop:
 	sll $t2,$t2,24
 	srl $t2,$t2,24
 	
+	#Start procedure to store max in s5 and min in s6
 	blt $t0, $t1, t1t2max
      	blt $t0, $t2, t2maxt1min
      	move $s5, $t0
@@ -237,14 +237,16 @@ t0t2min:
 	
 mint0:
 	move $s6,$t0
+
+endmaxmin: # Max is in s5 and min is in s6
 	
-endmaxmin:
-	
+	# Converts max and min to floating point numbers
 	mtc1 $s5, $f1
         cvt.s.w $f1, $f1
         mtc1 $s6, $f2
         cvt.s.w $f2, $f2
 	
+	# Stores RGB values to floating point
 	mtc1 $t0, $f4
         cvt.s.w $f4, $f4
 	mtc1 $t1, $f5
@@ -252,14 +254,16 @@ endmaxmin:
         mtc1 $t2, $f6
         cvt.s.w $f6, $f6
 	
-	
+	# Multiply the min by the specified percentage
 	mul.s $f2,$f2,$f0
 	
+	# Substract the product from the rgb values and the max value
 	sub.s $f4,$f4,$f2
 	sub.s $f5,$f5,$f2
 	sub.s $f6,$f6,$f2
 	sub.s $f9,$f1,$f2
 	
+	# If difference is greater than max skip and assign 1 to max, else max is assigned max divided by difference
 	c.le.s $f2,$f7
 	bc1t skipdiv
 	div.s $f1,$f1,$f9
@@ -269,11 +273,13 @@ skipdiv:
 	mov.s $f1,$f8
 	
 notzero:
-		
+	
+	# Multiply RGB values by max	
 	mul.s $f4,$f4,$f1
 	mul.s $f5,$f5,$f1
 	mul.s $f6,$f6,$f1
 	
+	# Convert to integers
 	cvt.w.s $f4, $f4
 	mfc1 $t0,$f4
 	cvt.w.s $f5, $f5
@@ -281,26 +287,26 @@ notzero:
 	cvt.w.s $f6, $f6
 	mfc1 $t2,$f6
 	
+	# Store RGB values in data buffer
 	sb $t0, 0($s3)
 	sb $t1, 1($s3)
 	sb $t2, 2($s3)
 	
+	# Increse loop counters
 	addi $t4, $t4, 3
-	#increment counters to use next pixel
-	#if we reach the end of the array, exit
-	bge $t4, $s1, write_file
+	bge $t4, $s1, write_file # If end of file reached jump to write_file
 	add $t6, $t6, 3
 	add $s3, $s3, 3
 	#else jump to start of the loop
 	j sat_loop
 	
+# Initiate no filter mode
 nothing:
-
 	move $t0,$zero
 	move $t1,$s2
 	
+# Loop to retrieve and store rgb values without any manipulation
 nothing_loop:
-
 	lb $t2,($t1)
 	sb $t2,($s3)
 	addi $s3,$s3,1
@@ -315,18 +321,19 @@ nothing_loop:
 	
 	j write_file
 
+# Initiate grayscale filter
 grayscale:
-
 	#convert colors into grayscale
 	move $t6, $s2	#load the image
 	move $t4, $zero
 
-average_loop:
-	
+# Grayscale filter loop
+average_loop:	
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
 	
+	#Isolate RGB values
 	sll $t0,$t0,24
 	srl $t0,$t0,24
 	sll $t1,$t1,24
@@ -353,10 +360,9 @@ average_loop:
 	
 edge_detect:
 	#use sobel filter
-	
-brightness:
 
-	#convert colors into grayscale
+# Initiate brightness filter	
+brightness:
 	move $t6, $s2	#load the image
 	move $t4, $zero
 	li $v0, 4			# syscall 4, print string
@@ -372,21 +378,24 @@ brightness:
 	bge $t5, $t7, brightness_loop_up
 	j brightness_loop_down
 
+# Brightness increase filter loop
 brightness_loop_up:
 
-	#computes the gray value for a pixel
-	#move $t3, $zero			#gray value
+	# Load RGB values
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
 	
+	# Convert parameters to floating point
 	mtc1 $t5, $f1
         cvt.s.w $f1, $f1
 	mtc1 $t7, $f2
         cvt.s.w $f2, $f2
         
+	# Convert parameter to a percentage
 	div.s $f1, $f1, $f2
 	
+	# Isolate RGB values then convert them to floating point
 	sll $t0, $t0, 24
 	srl $t0, $t0, 24
 	sll $t1, $t1, 24
@@ -401,10 +410,12 @@ brightness_loop_up:
         mtc1 $t2, $f6
         cvt.s.w $f6, $f6
 	
+	# Multiply RGB values by the percentage calculated
 	mul.s $f4, $f4, $f1
 	mul.s $f5, $f5, $f1
 	mul.s $f6, $f6, $f1
 	
+# Start procedure to cap RGB values at 255
 	addi $t0, $zero, 0xFFFFFFFF
 	addi $t1, $zero, 0xFFFFFFFF
 	addi $t2, $zero, 0xFFFFFFFF
@@ -433,6 +444,7 @@ skiptwo_up:
 	
 skipthree_up:
 
+#End capping procedure and store RGB values in data buffer
 	sb $t0, 0($s3)
 	sb $t1, 1($s3)
 	sb $t2, 2($s3)
@@ -445,21 +457,25 @@ skipthree_up:
 	add $s3, $s3, 3
 	#else jump to start of the loop
 	j brightness_loop_up
-	
+
+# Brightneess decrease filter	
 brightness_loop_down:
 
-	#computes the gray value for a pixel
+	# Load RGB values
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
 	
+	# Convert parameters to floating point
 	mtc1 $t5, $f1
         cvt.s.w $f1, $f1
 	mtc1 $t7, $f2
         cvt.s.w $f2, $f2
         
+        # Convert parameter to a percentage
 	div.s $f1, $f1, $f2
 	
+	# Isolate and covert RGB values to floating point
 	sll $t0, $t0, 24
 	srl $t0, $t0, 24
 	sll $t1, $t1, 24
@@ -476,11 +492,13 @@ brightness_loop_down:
         mtc1 $t2, $f6
         cvt.s.w $f6, $f6
 	
-	
+	# Multiply RGB values by the percenage
 	mul.s $f4, $f4, $f1
 	mul.s $f5, $f5, $f1
 	mul.s $f6, $f6, $f1
 	
+# Start procedure to cap RGB values at 255
+
 	addi $t0, $zero, 0x00000000
 	addi $t1, $zero, 0x00000000
 	addi $t2, $zero, 0x00000000
@@ -506,9 +524,9 @@ skiptwo_down:
 	
 	cvt.w.s $f6, $f6
 	mfc1 $t2, $f6
-	
-skipthree_down:
-	
+
+# End capping procedure and store RGB values in the data buffer	
+skipthree_down:	
 	sb $t0, 0($s3)
 	sb $t1, 1($s3)
 	sb $t2, 2($s3)
@@ -521,7 +539,8 @@ skipthree_down:
 	add $s3, $s3, 3
 	#else jump to start of the loop
 	j brightness_loop_down
-	
+
+#Initiate hue filter		
 hue:
 	#convert colors into grayscale
 	move $t6, $s2	#load the image
@@ -547,13 +566,13 @@ hue:
 	syscall
 	move $t9,$v0
 	
-
+# Hue filter loop
 hue_loop:
-	
+	# Load RGB values
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
-	
+	#Isolate them
 	sll $t0, $t0, 24
 	srl $t0, $t0, 24
 	sll $t1, $t1, 24
@@ -561,10 +580,12 @@ hue_loop:
 	sll $t2, $t2, 24
 	srl $t2, $t2, 24
 	
-	add $t0, $t0, $t9	#add b and g
+	#Add the relavent hue information
+	add $t0, $t0, $t9	
 	add $t1, $t1, $t8
 	add $t2, $t2, $t7
 	
+	#Store rgb values in the data buffer
 	sb $t0, 0($s3)
 	sb $t1, 1($s3)
 	sb $t2, 2($s3)
@@ -578,36 +599,40 @@ hue_loop:
 	#else jump to start of the loop
 	j hue_loop
 
+# Initiate invert filter
 invert:
-
 	move $t6, $s2	#load the image
 	move $t0, $zero 	
 	move $t4, $zero
 	addi $t5, $zero, 0xFFFFFFFF
 
+# Invert filter loop
 invert_loop:
-
+	# Load RGB values
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
 	
-	sub $t0, $t5, $t0 	#add b and g
+	# Sustract RGB values from 255
+	sub $t0, $t5, $t0 	
 	sub $t1, $t5, $t1
 	sub $t2, $t5, $t2
 	
+	# Store RGB values in data buffer
 	sb $t0, 0($s3)
 	sb $t1, 1($s3)
 	sb $t2, 2($s3)
 	
+	# Increase loop conters
 	addi $t4, $t4, 3
-	bge $t4, $s1, write_file
+	bge $t4, $s1, write_file #If end of file reached exit to write file
 	add $t6, $t6, 3
 	add $s3, $s3, 3
-	j invert_loop
+	j invert_loop # If not jump to loop starting point
 
+# Initiate shadow/lightfill filter
 shadowfill:
 
-	#convert colors into grayscale
 	move $t6, $s2	#load the image
 	move $t4, $zero
 	li $v0, 4			# syscall 4, print string
@@ -617,14 +642,17 @@ shadowfill:
 	syscall
 	move $t5, $v0
 	addi $s5, $zero, 255
-	bgez $t5, fill_loop
+	#If parameter greater than zero branch to fill loop if not get it's absolute value and jump to shadow loop
+	bgez $t5, fill_loop	
 	sra $t1, $t5, 31   
 	xor $t5, $t5, $t1   
 	sub $t5, $t5, $t1
 	j shadow_loop
 
+#Light fill filter loop
 fill_loop:
 
+	# Load and isolate RGB values
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
@@ -635,7 +663,8 @@ fill_loop:
 	srl $t8, $t8, 24
 	sll $t9, $t2, 24
 	srl $t9, $t9, 24
-	
+
+# Adds specifed value to RGB values and start capping procedure to cap at 255. Then store the values in the data buffer
 	sub $t7, $s5, $t7
 	sub $t8, $s5, $t8
 	sub $t9, $s5, $t9
@@ -675,7 +704,7 @@ fillskipthreeup:
 	sb $t2, 2($s3)
 	
 fillthreeup:
-	
+# End of capping and store procedure	
 	addi $t4, $t4, 3
 	#increment counters to use next pixel
 	#if we reach the end of the array, exit
@@ -685,8 +714,10 @@ fillthreeup:
 	#else jump to start of the loop
 	j fill_loop
 	
+# Shadow filter loop
 shadow_loop:
 
+	# Load and isolate RGB values
 	lb $t0, 0($t6)
 	lb $t1, 1($t6)
 	lb $t2, 2($t6)
@@ -698,6 +729,7 @@ shadow_loop:
 	sll $t9, $t2, 24
 	srl $t9, $t9, 24
 	
+# Substracts specifed value from RGB values and start capping procedure to cap at 0. Then store the values in the data buffer
 	blt $t7, $t5, shadowskiponedown
 	sub $t0, $t0, $t5
 	sb $t0, 0($s3)
@@ -733,7 +765,7 @@ shadowskipthreedown:
 	sb $t2, 2($s3)
 	
 shadowthreedown:
-	
+# End of capping and store procedure		
 	addi $t4, $t4, 3
 	#increment counters to use next pixel
 	#if we reach the end of the array, exit
