@@ -1,5 +1,5 @@
 .data
-welcome:	.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
+welcome:	.asciiz	"Please enter the name of the file you would like to edit! Note, this file needs to be placed in the MARS jar directory \n"
 filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue, 5: Invert, 6: Shadow/Fill Light \n"
 filterPercent:    .asciiz "Enter the percentage you want to wish to saturate (0 to 100)  \n"
 brightnessPrompt:    .asciiz "Enter desired brightness percentage (0 to 200)\n"
@@ -9,14 +9,15 @@ blueValue:    .asciiz "Enter hue modification value for blue (0 to 255)\n"
 greenValue:    .asciiz "Enter hue modification value for green (0 to 255)\n"
 header: 	.space   54 	# bitmap header data stored here 
 inputFileName:	.space	128 	# name of the input file, specified by user
-outname: 	.asciiz  "OUTPUT_IMAGE.bmp"
+outName: 	.space  128	#name of the outputted file
 buffer:		.space	1	# just here so that there are no compile time errors
+outputNameMessage:	.asciiz	"Please enter the name of the output file. Use the extension '.bmp'\n"
 
 ######################################################################################################
 # A program to process an image with multiple different filters. 
 # The input image needs to be a .bmp image and the output will be the same type.
 # The filters include saturation, grayscale, edge-detection, etc.
-# Authors: Shaun Howard, Emilio Colindres, Bennet Sherman, Josh Tang, Kevin Perera
+# Authors: Shaun Howard, Emilio Colindres, Bennett Sherman, Josh Tang, Kevin Perera
 #
 #	$s0 - the file descriptor
 #	$s1 - the size of the data section of the image (after 54 byte offset)
@@ -36,6 +37,31 @@ main:
 	li		$a1, 128		# read at most 256 characters
 	syscall
 	
+	#print 'enter the output filename' message
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, outputNameMessage	# load welcome string
+	syscall
+	
+	#read output name
+	li		$v0, 8			# syscall 8, read string
+	la		$a0, outName	# store string in outName
+	li		$a1, 128		# read at most 256 characters
+	syscall
+	
+	# remove trailing newline
+	li		$t0, '\n'		# we are looking for this character
+	li		$t1, 128		# length of the outName
+	li		$t2, 0			# clear the current character
+	
+outputRemoveNewLine:
+	beqz	$t1, newLineLoopInit	# if end of string, jump to remove newline from input string
+	subu	$t1, $t1, 1		# decrement the index
+	lb		$t2, outName($t1)	# load the character at current index position
+	bne		$t2, $t0, outputRemoveNewLine	# if current character != '\n', jump to loop beginning
+	li		$t0, 0			# else store null character
+	sb		$t0, outName($t1) # and overwrite newline character with null
+	
+newLineLoopInit:
 	# remove trailing newline
 	li		$t0, '\n'		# we are looking for this character
 	li		$t1, 128		# length of the inputFileName
@@ -67,7 +93,6 @@ newLineLoopEnd:
 	syscall
 	#move $s1, $v0
 	lw		$s1, header+34		# store the size of the data section of the image
-	
 	
 	
 	#read image data into array
@@ -781,7 +806,7 @@ write_file:
 	
 	#open output file
 	li	$v0, 13
-	la	$a0, outname
+	la	$a0, outName
 	li	$a1, 1		#1 to write, 0 to read
 	li	$a2, 0
 	syscall
