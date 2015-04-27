@@ -12,6 +12,7 @@ Grayscale
 *Edge detection 
 
 This is a group project for the final EECS314 project.
+
 Team:
 
 Shaun Howard, Kevin Perera, Emilio Colindres, Bennett Sherman, and Josh Tang
