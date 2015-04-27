@@ -1,18 +1,19 @@
 .data
-welcome:	.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
+welcome:		.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
 filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue, 5: Invert, 6: Shadow/Fill Light \n"
-filterPercent:    .asciiz "Enter the percentage you want to wish to saturate (0 to 100)  \n"
-brightnessPrompt:    .asciiz "Enter desired brightness percentage (0 to 200)\n"
+filterPercent:  .asciiz "Enter the percentage you want to wish to saturate (0 to 100)  \n"
+brightnessPrompt:	 .asciiz "Enter desired brightness percentage (0 to 200)\n"
 shadowfillPrompt:    .asciiz "Enter desired shadow/fill light value (-255 to 255)\n"
-redValue:    .asciiz "Enter hue modification value for red (0 to 255)\n"
-blueValue:    .asciiz "Enter hue modification value for blue (0 to 255)\n"
-greenValue:    .asciiz "Enter hue modification value for green (0 to 255)\n"
-header: 	.space   54 	# bitmap header data stored here 
+redValue:    	.asciiz "Enter hue modification value for red (0 to 255)\n"
+blueValue:    	.asciiz "Enter hue modification value for blue (0 to 255)\n"
+greenValue:    	.asciiz "Enter hue modification value for green (0 to 255)\n"
+header: 		.space   54 	# bitmap header data stored here 
 inputFileName:	.space	128 	# name of the input file, specified by user
-outName: 	.space  128	#name of the outputted file
-buffer:		.space	1	# just here so that there are no compile time errors
+outName: 		.space  128	#name of the outputted file
+buffer:			.space	1	# just here so that there are no compile time errors
 outputNameMessage:	.asciiz	"Please enter the name of the output file. Use the extension '.bmp'\n"
 impFiltSelMessage: 	.asciiz "\n***Invalid filter choice***\n\n"
+inputErrorMessage:	.asciiz "\nThe input image couldn't be read. Please confirm that you entered the proper file name. Program restarting.\n\n"
 
 ######################################################################################################
 # A program to process an image with multiple different filters. 
@@ -84,6 +85,7 @@ newLineLoopEnd:
 	li 		$a1, 0		# read flag
 	li		$a2, 0		# mode 0
 	syscall
+	bltz	$v0, inputFileErrorHandler	#if $v0=-1, there was a descriptor error; go to handler. 
 	move	$s0, $v0	# save file descriptor
 	
 	#read header data
@@ -839,9 +841,17 @@ leave:
 	syscall
 	
 #SECTION FOR LATE CREATED HANDLERS
+
 impropFilterSelectionHandler:
 	#print incorrect filter string
 	li		$v0, 4			# syscall 4, print string
 	la		$a0, impFiltSelMessage	# print the message
 	syscall
 	j		read_filter_data
+	
+inputFileErrorHandler:
+	#print file input error message
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, inputErrorMessage	# print the message
+	syscall
+	j		main
