@@ -17,7 +17,7 @@ Grayscale
 
 *Edge detection 
 
-This is a group project for the final EECS314 project.
+This was a final group project for EECS314, Spring 2015 at Case Western Reserve University.
 
 Team:
 
