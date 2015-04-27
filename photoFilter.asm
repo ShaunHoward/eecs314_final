@@ -1,5 +1,5 @@
 .data
-welcome:	.asciiz	"Please enter the name of the file you would like to edit! Note, this file needs to be placed in the MARS jar directory \n"
+welcome:	.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
 filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue, 5: Invert, 6: Shadow/Fill Light \n"
 filterPercent:    .asciiz "Enter the percentage you want to wish to saturate (0 to 100)  \n"
 brightnessPrompt:    .asciiz "Enter desired brightness percentage (0 to 200)\n"
@@ -21,7 +21,7 @@ outputNameMessage:	.asciiz	"Please enter the name of the output file. Use the ex
 #
 #	$s0 - the file descriptor
 #	$s1 - the size of the data section of the image (after 54 byte offset)
-#       $s2 - the pixel array of the bmp image
+#   $s2 - the pixel array of the bmp image
 #######################################################################################################
 .text
 main:
@@ -83,32 +83,31 @@ newLineLoopEnd:
 	li 		$a1, 0			# read flag
 	li		$a2, 0			# mode 0
 	syscall
-	move		$s0, $v0		# save file descriptor
+	move		$s0, $v0	# save file descriptor
 	
 	#read header data
 	li		$v0, 14			# syscall 14, read from file
-	move		$a0, $s0		# load file descriptor
+	move	$a0, $s0		# load file descriptor
 	la		$a1, header		# load address to store data
 	li		$a2, 54			# read 54 bytes
 	syscall
 	#move $s1, $v0
-	lw		$s1, header+34		# store the size of the data section of the image
-	
+	lw		$s1, header+34	# store the size of the data section of the image
 	
 	#read image data into array
 	li		$v0, 9		# syscall 9, allocate heap memory
-	move 	        $a0, $s1	# load size of data section
+	move	$a0, $s1	# load size of data section
 	syscall
-	move 	        $s2, $v0	# store the base address of the array in $s2
+	move	$s2, $v0	# store the base address of the array in $s2
 	
 	li		$v0, 14		# syscall 14, read from file
-	move 	        $a0, $s0	# load file descriptor
-	move 	        $a1, $s2	# load base address of array
-	move 	        $a2, $s1	# load size of data section
+	move	$a0, $s0	# load file descriptor
+	move	$a1, $s2	# load base address of array
+	move	$a2, $s1	# load size of data section
 	syscall
 	
 	#close file
-	move		$a0, $s0		# move the file descriptor into argument register
+	move	$a0, $s0		# move the file descriptor into argument register
 	li		$v0, 16			# syscall 16, close file
 	syscall
 	
