@@ -12,6 +12,7 @@ inputFileName:	.space	128 	# name of the input file, specified by user
 outName: 	.space  128	#name of the outputted file
 buffer:		.space	1	# just here so that there are no compile time errors
 outputNameMessage:	.asciiz	"Please enter the name of the output file. Use the extension '.bmp'\n"
+impFiltSelMessage: 	.asciiz "\n***Invalid filter choice***\n\n"
 
 ######################################################################################################
 # A program to process an image with multiple different filters. 
@@ -63,13 +64,13 @@ outputRemoveNewLine:
 	
 newLineLoopInit:
 	# remove trailing newline
-	li		$t0, '\n'		# we are looking for this character
-	li		$t1, 128		# length of the inputFileName
-	li		$t2, 0			# clear the current character
+	li		$t0, '\n'	# we are looking for this character
+	li		$t1, 128	# length of the inputFileName
+	li		$t2, 0		# clear the current character
 	
 newLineLoop:
-	beqz		$t1, newLineLoopEnd	# if end of string, jump to loop end
-	subu		$t1, $t1, 1		# decrement the index
+	beqz	$t1, newLineLoopEnd	# if end of string, jump to loop end
+	subu	$t1, $t1, 1			# decrement the index
 	lb		$t2, inputFileName($t1)	# load the character at current index position
 	bne		$t2, $t0, newLineLoop	# if current character != '\n', jump to loop beginning
 	li		$t0, 0			# else store null character
@@ -78,18 +79,18 @@ newLineLoop:
 newLineLoopEnd:
 	
 	#open input file
-	li		$v0, 13			# syscall 13, open file
+	li		$v0, 13		# syscall 13, open file
 	la		$a0, inputFileName	# load filename address
-	li 		$a1, 0			# read flag
-	li		$a2, 0			# mode 0
+	li 		$a1, 0		# read flag
+	li		$a2, 0		# mode 0
 	syscall
-	move		$s0, $v0	# save file descriptor
+	move	$s0, $v0	# save file descriptor
 	
 	#read header data
-	li		$v0, 14			# syscall 14, read from file
-	move	$a0, $s0		# load file descriptor
-	la		$a1, header		# load address to store data
-	li		$a2, 54			# read 54 bytes
+	li		$v0, 14		# syscall 14, read from file
+	move	$a0, $s0	# load file descriptor
+	la		$a1, header	# load address to store data
+	li		$a2, 54		# read 54 bytes
 	syscall
 	#move $s1, $v0
 	lw		$s1, header+34	# store the size of the data section of the image
@@ -116,16 +117,21 @@ newLineLoopEnd:
  	
  	#add $s3,$s3,$t0
         #print filter type string
-	li		$v0, 4			# syscall 4, print string
-	la		$a0, filterType		# load filter selection string
+	li		$v0, 4	# syscall 4, print string
+	la		$a0, filterType	# load filter selection string
 	syscall
 	
         #read filter type
-	li		$v0, 5			# syscall 5, read integer (0 to 4)
+	li		$v0, 5	# syscall 5, read integer (0 to 6)
 	syscall
 	
+	#Proper filter selection checks
+	slti	$v1, $v0, 7	#if entered integer is less than 7, it is a proper filter selection, so $v1=1
+	beq		$v1, $zero, impropFilterSelectionHandler #if $v0=0, the filter selection was 7 or greater, and is not allowed
+	bltz	$v0, impropFilterSelectionHandler 	#if entered integer is less than 0, it is NOT a proper filter selection. Branch to handler	
+	
 	#store filter type in $t4
-	addi            $t4, $v0, 0      
+	addi	$t4, $v0, 0      
 	
 	#************ NOW THE IMAGE IS IN AN ARRAY STARTING AT $S2 **********#
 	
@@ -143,8 +149,7 @@ newLineLoopEnd:
 # 3 for brightness, 4 for hue, 5 for inversion, 6 for shadow fill)
 filter_init:
 
-	la $s3, buffer  #load the address of the buffer into $s3
-	
+	la $s3, buffer  #load the address of the buffer into $s3	
 
 	addi $t3, $zero, -1 #no filter, just exit
 	beq $t3, $t4, nothing 
@@ -700,20 +705,20 @@ fill_loop:
 	
 fillskiponeup:
 
-	addi $t0, $zero, 0xFFFFFFFF
-	sb $t0, 0($s3)
+	addi	$t0, $zero, 0xFFFFFFFF
+	sb 		$t0, 0($s3)
 	
 filloneup:
 
-	blt $t8, $t5, fillskiptwoup
-	add $t1, $t5, $t1
-	sb $t1, 1($s3)
-	j filltwoup
+	blt 	$t8, $t5, fillskiptwoup
+	add 	$t1, $t5, $t1
+	sb 		$t1, 1($s3)
+	j 		filltwoup
 	
 fillskiptwoup:
 
-	addi $t1, $zero, 0xFFFFFFFF
-	sb $t1, 1($s3)
+	addi 	$t1, $zero, 0xFFFFFFFF
+	sb		$t1, 1($s3)
 	
 filltwoup:
 
@@ -724,8 +729,8 @@ filltwoup:
 	
 fillskipthreeup:
 
-	addi $t2, $zero, 0xFFFFFFFF
-	sb $t2, 2($s3)
+	addi 	$t2, $zero, 0xFFFFFFFF
+	sb 		$t2, 2($s3)
 	
 fillthreeup:
 # End of capping and store procedure	
@@ -804,31 +809,39 @@ exit:
 write_file:
 	
 	#open output file
-	li	$v0, 13
-	la	$a0, outName
-	li	$a1, 1		#1 to write, 0 to read
-	li	$a2, 0
+	li		$v0, 13
+	la		$a0, outName
+	li		$a1, 1		#1 to write, 0 to read
+	li		$a2, 0
 	syscall
 	move	$t1, $v0	#output file descriptor in $s2
 	
-	li	$v0, 15		#prep $v0 for write syscall
+	li		$v0, 15		#prep $v0 for write syscall
 	move 	$a0, $t1
-	la	$a1, header
+	la		$a1, header
 	addi    $a2,$zero,54
 	syscall
 	#write to output file
-	li	$v0, 15		#prep $v0 for write syscall
+	li		$v0, 15		#prep $v0 for write syscall
 	move 	$a0, $t1
-	la	$a1, buffer
-	move   $a2,$s1
+	la		$a1, buffer
+	move  	$a2,$s1
 	syscall
 	
 	#close file
 	move	$a0, $s2
-	li	$v0, 16
+	li		$v0, 16
 	syscall
 
 leave:
 	#nicely terminate program
-	li 	$v0, 10
+	li 		$v0, 10
 	syscall
+	
+#SECTION FOR LATE CREATED HANDLERS
+impropFilterSelectionHandler:
+	#print incorrect filter string
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, impFiltSelMessage	# print the message
+	syscall
+	j		read_filter_data
