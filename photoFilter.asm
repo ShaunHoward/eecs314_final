@@ -9,8 +9,6 @@ blueValue:    	.asciiz "Enter hue modification value for blue (0 to 255)\n"
 greenValue:    	.asciiz "Enter hue modification value for green (0 to 255)\n"
 header: 		.space   54 	# bitmap header data stored here 
 inputFileName:	.space	128 	# name of the input file, specified by user
-outName: 		.space  128	#name of the outputted file
-buffer:			.space	1	# just here so that there are no compile time errors
 outputNameMessage:	.asciiz	"Please enter the name of the output file. Use the extension '.bmp'\n"
 impFiltSelMessage: 	.asciiz "\n***Invalid filter choice***\n\n"
 inputErrorMessage:	.asciiz "\nThe input image couldn't be read. Please confirm that you entered the proper file name. Program restarting.\n\n"
@@ -18,6 +16,8 @@ improperFormatMessage:	.asciiz	"\nThe file entered is a bitmap, but is not 24-bi
 nonBitmapEnteredMessage: .asciiz "\nThe file entered is not a bitmap. Please enter a 24-bit bitmap as input. Program restarting.\n\n"
 outputErrorMessage: .asciiz "\nThe selected output file cannot be created. This likely is a result of having entered a directory that doesn't exist. The program will now restart.\n"
 filterTimeMessage:	.asciiz "\nFiltering initiated. Although the program appears to be unresponsive, it is working. Filtering can take anywhere from a few seconds to a minute, so please be patient.\n"
+outName: 		.space  128	#name of the outputted file
+buffer:			.space	1	# just here so that there are no compile time errors
 
 ######################################################################################################
 # A program to process an image with multiple different filters. 
