@@ -24,3 +24,11 @@ Team:
 Shaun Howard, Kevin Perera, Emilio Colindres, Bennett Sherman, and Josh Tang
 
 *pending
+
+Problems our code checks for:
+1.) Invalid filter selection
+2.) Enter a file that doesn't exist
+3.) Confirms that the bitmap entered is in fact 24 bits
+
+Problems we *should* check for:
+1.) Confirm that the user enters .bmp files for I/O

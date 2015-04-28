@@ -14,6 +14,7 @@ buffer:			.space	1	# just here so that there are no compile time errors
 outputNameMessage:	.asciiz	"Please enter the name of the output file. Use the extension '.bmp'\n"
 impFiltSelMessage: 	.asciiz "\n***Invalid filter choice***\n\n"
 inputErrorMessage:	.asciiz "\nThe input image couldn't be read. Please confirm that you entered the proper file name. Program restarting.\n\n"
+improperFormatMessage:	.asciiz	"\nThe file entered is not a 24-bit bitmap, and thus is an invalid input for this program. Program restarting.\n\n"
 
 ######################################################################################################
 # A program to process an image with multiple different filters. 
@@ -94,7 +95,12 @@ newLineLoopEnd:
 	la		$a1, header	# load address to store data
 	li		$a2, 54		# read 54 bytes
 	syscall
-	#move $s1, $v0
+	#confirm that the bitmap is actually 24 bits
+	li		$t0, 0x18	#store 0x18 into $t0. 0x28 is 24 in decimal, i.e. a 24-bit bitmap
+	lb		$t1, header+28	#offset of 28 points at the header's indication of how many bits the bmp is (2 bytes, we only need the first one)
+	bne		$t0, $t1, improperFormatHandler	#if the two aren't equal, it means the entered file is not a 24 bit bmp, so go to the handler to start again
+	
+	#we're good! File is the right format. Now we can proceed
 	lw		$s1, header+34	# store the size of the data section of the image
 	
 	#read image data into array
@@ -836,7 +842,7 @@ write_file:
 	syscall
 
 leave:
-	#nicely terminate program
+	#nicely terminate the program
 	li 		$v0, 10
 	syscall
 	
@@ -853,5 +859,12 @@ inputFileErrorHandler:
 	#print file input error message
 	li		$v0, 4			# syscall 4, print string
 	la		$a0, inputErrorMessage	# print the message
+	syscall
+	j		main
+	
+improperFormatHandler:
+	#print file input error message
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, improperFormatMessage	# print the message
 	syscall
 	j		main
