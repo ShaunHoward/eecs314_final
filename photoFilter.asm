@@ -16,6 +16,8 @@ impFiltSelMessage: 	.asciiz "\n***Invalid filter choice***\n\n"
 inputErrorMessage:	.asciiz "\nThe input image couldn't be read. Please confirm that you entered the proper file name. Program restarting.\n\n"
 improperFormatMessage:	.asciiz	"\nThe file entered is a bitmap, but is not 24-bit, and thus is an invalid input for this program. Program restarting.\n\n"
 nonBitmapEnteredMessage: .asciiz "\nThe file entered is not a bitmap. Please enter a 24-bit bitmap as input. Program restarting.\n\n"
+outputErrorMessage: .asciiz "\nThe selected output file cannot be created. This likely is a result of having entered a directory that doesn't exist. The program will now restart.\n"
+filterTimeMessage:	.asciiz "\nFiltering initiated. Although the program appears to be unresponsive, it is working. Filtering can take anywhere from a few seconds to a minute, so please be patient.\n"
 
 ######################################################################################################
 # A program to process an image with multiple different filters. 
@@ -163,6 +165,11 @@ newLineLoopEnd:
 # $t4 = the type of filter to run (0 for saturation, 1 for grayscale, 2 for sobel edge detection, 
 # 3 for brightness, 4 for hue, 5 for inversion, 6 for shadow fill)
 filter_init:
+
+	#print length message 
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, filterTimeMessage	# load welcome string
+	syscall
 
 	la $s3, buffer  #load the address of the buffer into $s3	
 
@@ -829,22 +836,27 @@ write_file:
 	li		$a1, 1		#1 to write, 0 to read
 	li		$a2, 0
 	syscall
-	move	$t1, $v0	#output file descriptor in $s2
+	move	$t1, $v0	#output file descriptor in $t1
 	
+	#confirm that file exists (if $v0/$t1 contains -1, it means there was an error opening the output descriptor)
+	bltz	$t1, outputFileErrorHandler
+
+	#If we're here, the file can be written to, so write header to output
 	li		$v0, 15		#prep $v0 for write syscall
 	move 	$a0, $t1
 	la		$a1, header
-	addi    $a2,$zero,54
+	addi    $a2, $zero,54
 	syscall
+	
 	#write to output file
 	li		$v0, 15		#prep $v0 for write syscall
 	move 	$a0, $t1
 	la		$a1, buffer
-	move  	$a2,$s1
+	move  	$a2, $s1
 	syscall
 	
 	#close file
-	move	$a0, $s2
+	move	$a0, $t1
 	li		$v0, 16
 	syscall
 
@@ -880,5 +892,12 @@ inputNotBMPHandler:
 	#print file input error message
 	li		$v0, 4			# syscall 4, print string
 	la		$a0, nonBitmapEnteredMessage	# print the message
+	syscall
+	j		main
+	
+outputFileErrorHandler:
+	#print file output error message
+	li		$v0, 4			# syscall 4, print string
+	la		$a0, outputErrorMessage	# print the message
 	syscall
 	j		main
