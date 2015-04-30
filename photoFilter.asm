@@ -15,7 +15,6 @@ inputErrorMessage:	.asciiz "\nThe input image couldn't be read. Please confirm t
 improperFormatMessage:	.asciiz	"\nThe file entered is a bitmap, but is not 24-bit, and thus is an invalid input for this program. Program restarting.\n\n"
 nonBitmapEnteredMessage: .asciiz "\nThe file entered is not a bitmap. Please enter a 24-bit bitmap as input. Program restarting.\n\n"
 outputErrorMessage: .asciiz "\nThe selected output file cannot be created. This likely is a result of having entered a directory that doesn't exist. The program will now restart.\n"
-fileSizeErrMessage: .asciiz	"\nThe inputted file exceeds the maximum size of 3.95MB. Program restarting\n\n"
 filterTimeMessage:	.asciiz "\nFiltering initiated. Although the program appears to be unresponsive, it is working. Filtering can take anywhere from a few seconds to a minute, so please be patient.\n"
 outName: 		.space  128	#name of the outputted file
 buffer:			.space	1	# just here so that there are no compile time errors
@@ -122,10 +121,6 @@ newLineLoopEnd:
 	
 	#we're good! File is the right format. Now we can proceed
 	lw		$s1, header+34	# store the size of the data section of the image
-	
-	#make sure the file fits within size limits
-	li		$t2, 0x3C45B0	#load our maximum allowed image size (3.95MB) into $t2 
-	blt		$t2, $s1, fileSizeErrHandler	#if filesize is larger than the max allowed, go to the handler to resolve the issue.
 	
 	#read image data into array
 	li		$v0, 9		# syscall 9, allocate heap memory
@@ -492,7 +487,12 @@ kernel_loop:
 	lbu $t0, yOffset($t8)
 	add $t3, $t5, $t0
 	
-	j check_Bounds
+	#check x
+	bge $t2, $s7, kernel_loop
+	blt $t2, $zero, kernel_loop 
+	#check y
+	bge $t3, $s4, kernel_loop
+	blt $t3, $zero, kernel_loop 
 	
 	mul $t0,$s7,$t3
 	add $t0,$t0,$t2
@@ -501,17 +501,11 @@ kernel_loop:
 	
 	
 	add $t3, $t7, $t8
-	lb $t3, 0($t3)
-					
-check_Bounds:
-	#check x
-	bge $t2, $s7, kernel_loop
-	blt $t2, $zero, kernel_loop 
-	#check y
-	bge $t3, $s4, kernel_loop
-	blt $t3, $zero, kernel_loop 
-	
-
+	#lb $t3, 0($t3)
+			
+	bne $t8,8,convolution
+	j kernel_loop
+							
 # Initiate brightness filter	
 brightness:
 	move $t6, $s2	#load the image
@@ -1001,10 +995,3 @@ outputFileErrorHandler:
 	la		$a0, outputErrorMessage	# print the message
 	syscall
 	j		main
-	
-fileSizeErrHandler:
-	#print file output error message
-	li		$v0, 4			# syscall 4, print string
-	la		$a0, fileSizeErrMessage	# print the message
-	syscall
-	j		main	#start program over again
