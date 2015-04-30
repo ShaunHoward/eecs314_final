@@ -19,6 +19,11 @@ fileSizeErrMessage: .asciiz	"\nThe inputted file exceeds the maximum size of 3.9
 filterTimeMessage:	.asciiz "\nFiltering initiated. Although the program appears to be unresponsive, it is working. Filtering can take anywhere from a few seconds to a minute, so please be patient.\n"
 outName: 		.space  128	#name of the outputted file
 buffer:			.space	1	# just here so that there are no compile time errors
+xOffset:			.byte   -1,0,1,-1,0,1,-1,0,1
+yOffset:			.byte   -1,-1,-1,0,0,0,1,1,1
+vSobel:			.byte	1,2,1,0,0,0,-1,-2,-1	#vertical mask for Sobel
+hSobel:			.byte	1,0,-1,2,0,-2,1,0,-1	#horizontal mask for Sobel
+
 
 ######################################################################################################
 # A program to process an image with multiple different filters. 
@@ -105,6 +110,11 @@ newLineLoopEnd:
 	lhu		$t1, header	#the signature is stored in the first two bytes
 	bne		$t0, $t1, inputNotBMPHandler #if these two aren't equal, then the input is not a bitmap
 	
+	#save the width
+	lw 	$s7, header+18
+	#save height
+	lw	$s4, header+22
+	
 	#confirm that the bitmap is actually 24 bits
 	li		$t0, 0x18	#store 0x18 into $t0. 0x18 is 24 in decimal, i.e. a 24-bit bitmap
 	lb		$t1, header+28	#offset of 28 points at the header's indication of how many bits the bmp is (2 bytes, we only need the first one)
@@ -188,7 +198,7 @@ filter_init:
 	beq $t3, $t4, grayscale
 	
 	addi $t3, $zero, 2
-	#beq $t3, $t4, edge_detect
+	beq $t3, $t4, edge_detect
 	
 	addi $t3, $zero, 3
 	beq $t3, $t4, brightness
@@ -416,6 +426,91 @@ average_loop:
 	
 edge_detect:
 	#use sobel filter
+	move $t6, $s2 	#load image
+	move $t4, $zero
+	#get the vertical mask
+	lb $t7,vSobel
+	j convolution
+	
+convolution:
+	#set accumulator to 0
+	move $t9, $zero
+	
+	#find the indexes of the target pixel
+	div $t0,$t4,3
+	div $t5,$t0,$s7
+	mul $t1,$t5,$s7
+	sub $t1,$t0,$t1
+	
+	
+	subi $t8, $zero, 1
+	j kernel_loop
+	
+	#get blue value of the pixel
+	lb $t0,($t2)
+	sll $t0, $t0, 24
+	srl $t0, $t0, 24
+	mul $t0,$t0,$t3
+	add $t9,$t0,$t9
+	sb $t0, 0($s3)
+	
+	#get green value of the pixel
+	lb $t0,1($t2)
+	sll $t0, $t0, 24
+	srl $t0, $t0, 24
+	mul $t0,$t0,$t3
+	add $t9,$t0,$t9
+	sb $t0, 1($s3)
+	
+	
+	#get red value of the pixel
+	lb $t0,2($t2)
+	sll $t0, $t0, 24
+	srl $t0, $t0, 24
+	mul $t0,$t0,$t3
+	add $t9,$t0,$t9
+	sb $t0, 2($s3)
+	
+	addi $t4, $t4, 3
+	#increment counters to use next pixel
+	#if we reach the end of the array, exit
+	bge $t4, $s1, write_file
+	add $t6, $t6, 3
+	add $s3, $s3, 3
+	#else jump to start of the loop
+	j convolution
+	
+kernel_loop:
+	#increment loop index
+	addi $t8, $t8, 1
+	
+	#calculate x
+	lbu $t0, xOffset($t8)
+	add $t2, $t1, $t0
+	
+	#calculate y
+	lbu $t0, yOffset($t8)
+	add $t3, $t5, $t0
+	
+	j check_Bounds
+	
+	mul $t0,$s7,$t3
+	add $t0,$t0,$t2
+	mul $t0, $t0, 3
+	add $t2, $t6, $t0
+	
+	
+	add $t3, $t7, $t8
+	lb $t3, 0($t3)
+					
+check_Bounds:
+	#check x
+	bge $t2, $s7, kernel_loop
+	blt $t2, $zero, kernel_loop 
+	#check y
+	bge $t3, $s4, kernel_loop
+	blt $t3, $zero, kernel_loop 
+	
 
 # Initiate brightness filter	
 brightness:
