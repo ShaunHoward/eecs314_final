@@ -19,11 +19,14 @@ filterTimeMessage:	.asciiz "\nFiltering initiated. Although the program appears 
 outName: 		.space  128	#name of the outputted file
 xOffset:			.byte   -1,0,1,-1,0,1,-1,0,1
 yOffset:			.byte   -1,-1,-1,0,0,0,1,1,1
-vSobel:			.byte	1,2,1,0,0,0,-1,-2,-1	#vertical mask for Sobel
-hSobel:			.byte	1,0,-1,2,0,-2,1,0,-1	#horizontal mask for Sobel
+vEdgeDetect:			.byte	1,2,1,0,0,0,-1,-2,-1	#vertical edge detection mask
+hEdgeDetect:			.byte	1,0,-1,2,0,-2,1,0,-1	#horizontal edge detection mask
+edgeDetect:                     .byte   0,1,0,1,-4,1,0,1,0      #mask to detect all edges
+sharpen:                        .byte   0,-1,0,-1,5,-1,0,-1,0   #mask to sharpen the image
+boxBlur:			.byte   1,1,1,1,1,1,1,1,1	#mask to blur the image
+gaussianBlur:			.byte	1,2,1,2,4,2,1,2,1	#mask using gaussian fuinction to blur image
+
 buffer:			.space	1	# just here so that there are no compile time errors
-
-
 
 ######################################################################################################
 # A program to process an image with multiple different filters. 
