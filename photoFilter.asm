@@ -6,7 +6,7 @@ brightnessPrompt:	 .asciiz "Enter desired brightness percentage (0 to 200)\n"
 shadowfillPrompt:    .asciiz "Enter desired shadow/fill light value (-255 to 255)\n"
 redValue:    	.asciiz "Enter hue modification value for red (0 to 255)\n"
 blueValue:    	.asciiz "Enter hue modification value for blue (0 to 255)\n"
-greenValue:    	.asciiz "Enter hue modification value for green (0 to 255)\n"
+greenValue:    	.asciiz "Enter hue modification value for green (0 to 255)      \n"
 header: 		.space   54 	# bitmap header data stored here 
 inputFileName:	.space	128 	# name of the input file, specified by user
 outputNameMessage:	.asciiz	"Please enter the name of the output file. Use the extension '.bmp'\n"
@@ -502,7 +502,7 @@ convolution:
 
 accumulate:
 	#get blue value of the pixel
-	lb $t0,($t2)
+	lb $t0,($t6)
 	sll $t0, $t0, 24
 	srl $t0, $t0, 24
 	mul $t0,$t0,$t3
@@ -510,7 +510,7 @@ accumulate:
 	sb $t0, 0($s3)
 	
 	#get green value of the pixel
-	lb $t0,1($t2)
+	lb $t0,1($t6)
 	sll $t0, $t0, 24
 	srl $t0, $t0, 24
 	mul $t0,$t0,$t3
@@ -518,7 +518,7 @@ accumulate:
 	sb $t0, 1($s3)
 	
 	#get red value of the pixel
-	lb $t0,2($t2)
+	lb $t0,2($t6)
 	sll $t0, $t0, 24
 	srl $t0, $t0, 24
 	mul $t0,$t0,$t3
@@ -556,7 +556,7 @@ kernel_loop:
 	mul $t0,$s7,$t3
 	add $t0,$t0,$t2
 	mul $t0, $t0, 3
-	add $t2, $t6, $t0
+	#add $t2, $t6, $t0
 	
 	add $t3, $t7, $t8
 	#lb $t3, 0($t3)
