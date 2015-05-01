@@ -212,10 +212,10 @@ filter_init:
 	beq $t3, $t4, shadowfill
 
 	addi $t3, $zero, 7
-	beq $t3, $t4, v_edge_detection
+	beq $t3, $t4, v_edge_detect
 	
 	addi $t3, $zero, 8
-	beq $t3, $t4, h_edge_detection
+	beq $t3, $t4, h_edge_detect
 	
 	addi $t3, $zero, 9
 	beq $t3, $t4, sharpen_filter
@@ -465,11 +465,10 @@ sharpen_filter:
 	#use sobel filter
 	move $t6, $s2 	#load image
 	move $t4, $zero
+
 	#get the vertical mask
 	lb $t7,sharpen
-=======
-	lb $t7,vEdgeDetect
->>>>>>> origin/master
+
 	j convolution
 	
 gauss_blur:
