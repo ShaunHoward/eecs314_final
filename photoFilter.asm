@@ -144,7 +144,7 @@ newLineLoopEnd:
 	syscall
 	
 #determine the filter the user wants to run by input
- read_filter_data:
+read_filter_data:
  	
  	#add $s3,$s3,$t0
         #print filter type string
@@ -424,7 +424,6 @@ average_loop:
 	j average_loop
 	
 edge_detect:
-	#use sobel filter
 	move $t6, $s2 	#load image
 	move $t4, $zero
 	#get the vertical mask
@@ -440,7 +439,6 @@ convolution:
 	div $t5,$t0,$s7
 	mul $t1,$t5,$s7
 	sub $t1,$t0,$t1
-	
 	
 	subi $t8, $zero, 1
 	j kernel_loop
@@ -461,7 +459,6 @@ accumulate:
 	mul $t0,$t0,$t3
 	add $t9,$t0,$t9
 	sb $t0, 1($s3)
-	
 	
 	#get red value of the pixel
 	lb $t0,2($t2)
@@ -503,7 +500,6 @@ kernel_loop:
 	add $t0,$t0,$t2
 	mul $t0, $t0, 3
 	add $t2, $t6, $t0
-	
 	
 	add $t3, $t7, $t8
 	#lb $t3, 0($t3)
