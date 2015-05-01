@@ -24,7 +24,7 @@ hEdgeDetect:			.byte	1,0,-1,2,0,-2,1,0,-1	#horizontal edge detection mask
 edgeDetect:                     .byte   0,1,0,1,-4,1,0,1,0      #mask to detect all edges
 sharpen:                        .byte   0,-1,0,-1,5,-1,0,-1,0   #mask to sharpen the image
 boxBlur:			.byte   1,1,1,1,1,1,1,1,1	#mask to blur the image
-gaussianBlur:			.byte	1,2,1,2,4,2,1,2,1	#mask using gaussian fuinction to blur image
+gaussianBlur:			.byte	1,2,1,2,4,2,1,2,1	#mask using gaussian function to blur image
 
 buffer:			.space	1	# just here so that there are no compile time errors
 
@@ -468,6 +468,9 @@ sharpen_filter:
 	move $t4, $zero
 	#get the vertical mask
 	lb $t7,sharpen
+=======
+	lb $t7,vEdgeDetect
+>>>>>>> origin/master
 	j convolution
 	
 gauss_blur:
