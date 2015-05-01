@@ -431,56 +431,58 @@ average_loop:
 	add $s3, $s3, 3
 	#else jump to start of the loop
 	j average_loop
-	
+
+#filter thatconvolves the image with the edge detector kernel		
 edge_detect:
 	move $t6, $s2 	#load image
 	move $t4, $zero
-	#get the vertical mask
+	#get the edge detection mask
 	lb $t7,edgeDetect
 	j convolution
 
+#filter that convolves the image with the vertical edge detector kernel
 v_edge_detect:
-	#use sobel filter
 	move $t6, $s2 	#load image
 	move $t4, $zero
 	#get the vertical mask
 	lb $t7,vEdgeDetect
 	j convolution
-
+	
+#filter that convolves the image with the horizontal edge detector kernel
 h_edge_detect:
-	#use sobel filter
 	move $t6, $s2 	#load image
 	move $t4, $zero
-	#get the vertical mask
+	#get the horizontal mask
 	lb $t7,hEdgeDetect
 	j convolution
 
+#filter that convolves the image with the sharpening kernel: sharpens the image
 sharpen_filter:
-	#use sobel filter
 	move $t6, $s2 	#load image
 	move $t4, $zero
 
-	#get the vertical mask
+	#get the sharpening mask
 	lb $t7,sharpen
 
 	j convolution
-	
+
+#filter that convolves the image with the gaussian kernel	
 gauss_blur:
-	#use sobel filter
 	move $t6, $s2 	#load image
 	move $t4, $zero
-	#get the vertical mask
+	#get the gaussian mask
 	lb $t7,gaussianBlur
 	j convolution
 	
+#filter that convolves the image with the box blur kernel: average all of the surrounding pixels into that pixel
 box_blur:
-	#use sobel filter
 	move $t6, $s2 	#load image
 	move $t4, $zero
-	#get the vertical mask
+	#get the box mask
 	lb $t7,boxBlur
 	j convolution
 					
+#performs matrix convolution on the image					
 convolution:
 	#set accumulator to 0
 	move $t9, $zero
@@ -491,9 +493,12 @@ convolution:
 	mul $t1,$t5,$s7
 	sub $t1,$t0,$t1
 	
+	#initializes the kernel counter
 	subi $t8, $zero, 1
+	#for each pixel loop apply the kernel to the neighbooring pixels
 	j kernel_loop
 
+#stores the pixel values
 accumulate:
 	#get blue value of the pixel
 	lb $t0,($t6)
@@ -527,11 +532,13 @@ accumulate:
 	add $s3, $s3, 3
 	#else jump to start of the loop
 	j convolution
-	
+
+#multiplies the value of each surrounding pixel by the corresponding kernel value and sums them		
 kernel_loop:
 	#increment loop index
 	addi $t8, $t8, 1
 	
+	bge $t8,9,accumulate
 	#calculate x
 	lb $t0, xOffset($t8)
 	add $t2, $t1, $t0
