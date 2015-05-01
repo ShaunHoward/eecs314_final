@@ -1,6 +1,6 @@
 .data
 welcome:		.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
-filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection, 3: Brightness, 4: Hue, 5: Invert, 6: Shadow/Fill Light \n"
+filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection(for greyscale), 3: Brightness, 4: Hue, 5: Invert, 6: Shadow/Fill Light, \n 7:Vertical Edge Detection(for greyscale),8:Horizontal Edge Detection(for greyscale), 9:Sharpen, 10: Box Blur, 11: Gaussian Blur \n"
 filterPercent:  .asciiz "Enter the percentage you want to wish to saturate (0 to 100)  \n"
 brightnessPrompt:	 .asciiz "Enter desired brightness percentage (0 to 200)\n"
 shadowfillPrompt:    .asciiz "Enter desired shadow/fill light value (-255 to 255)\n"
@@ -24,7 +24,7 @@ hEdgeDetect:			.byte	1,0,-1,2,0,-2,1,0,-1	#horizontal edge detection mask
 edgeDetect:                     .byte   0,1,0,1,-4,1,0,1,0      #mask to detect all edges
 sharpen:                        .byte   0,-1,0,-1,5,-1,0,-1,0   #mask to sharpen the image
 boxBlur:			.byte   1,1,1,1,1,1,1,1,1	#mask to blur the image
-gaussianBlur:			.byte	1,2,1,2,4,2,1,2,1	#mask using gaussian fuinction to blur image
+gaussianBlur:			.byte	1,2,1,2,4,2,1,2,1	#mask using gaussian function to blur image
 
 buffer:			.space	1	# just here so that there are no compile time errors
 
@@ -157,7 +157,7 @@ read_filter_data:
 	syscall
 	
 	#Proper filter selection checks
-	slti	$v1, $v0, 7	#if entered integer is less than 7, it is a proper filter selection, so $v1=1
+	slti	$v1, $v0, 12	#if entered integer is less than 12, it is a proper filter selection, so $v1=1
 	beq		$v1, $zero, impropFilterSelectionHandler #if $v0=0, the filter selection was 7 or greater, and is not allowed
 	bltz	$v0, impropFilterSelectionHandler 	#if entered integer is less than 0, it is NOT a proper filter selection. Branch to handler	
 	
@@ -210,6 +210,21 @@ filter_init:
 	
 	addi $t3, $zero, 6
 	beq $t3, $t4, shadowfill
+
+	addi $t3, $zero, 7
+	beq $t3, $t4, v_edge_detection
+	
+	addi $t3, $zero, 8
+	beq $t3, $t4, h_edge_detection
+	
+	addi $t3, $zero, 9
+	beq $t3, $t4, sharpen_filter
+	
+	addi $t3, $zero, 10
+	beq $t3, $t4, box_blur
+	
+	addi $t3, $zero, 11
+	beq $t3, $t4, box_blur
 	
 saturation:
  
@@ -427,9 +442,52 @@ edge_detect:
 	move $t6, $s2 	#load image
 	move $t4, $zero
 	#get the vertical mask
+	lb $t7,edgeDetect
+	j convolution
+
+v_edge_detect:
+	#use sobel filter
+	move $t6, $s2 	#load image
+	move $t4, $zero
+	#get the vertical mask
 	lb $t7,vEdgeDetect
 	j convolution
+
+h_edge_detect:
+	#use sobel filter
+	move $t6, $s2 	#load image
+	move $t4, $zero
+	#get the vertical mask
+	lb $t7,hEdgeDetect
+	j convolution
+
+sharpen_filter:
+	#use sobel filter
+	move $t6, $s2 	#load image
+	move $t4, $zero
+	#get the vertical mask
+	lb $t7,sharpen
+=======
+	lb $t7,vEdgeDetect
+>>>>>>> origin/master
+	j convolution
 	
+gauss_blur:
+	#use sobel filter
+	move $t6, $s2 	#load image
+	move $t4, $zero
+	#get the vertical mask
+	lb $t7,gaussianBlur
+	j convolution
+	
+box_blur:
+	#use sobel filter
+	move $t6, $s2 	#load image
+	move $t4, $zero
+	#get the vertical mask
+	lb $t7,boxBlur
+	j convolution
+					
 convolution:
 	#set accumulator to 0
 	move $t9, $zero
