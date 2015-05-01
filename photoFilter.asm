@@ -1,6 +1,6 @@
 .data
 welcome:		.asciiz	"Welcome! Please enter the name of the file you would like to edit?  \n"
-filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection(for greyscale), 3: Brightness, 4: Hue, 5: Invert, 6: Shadow/Fill Light, \n 7:Vertical Edge Detection(for greyscale),8:Horizontal Edge Detection(for greyscale), 9:Sharpen, 10: Box Blur, 11: Gaussian Blur \n"
+filterType:     .asciiz "Please enter the filter you would like to use.\nA list of filters are the following:\n0: Saturation, 1: Grayscale, 2: Edge-detection(for grayscale), 3: Brightness, 4: Hue, 5: Invert, 6: Shadow/Fill Light, \n 7:Vertical Edge Detection(for grayscale),8:Horizontal Edge Detection(for grayscale), 9:Sharpen, 10: Box Blur, 11: Gaussian Blur \n"
 filterPercent:  .asciiz "Enter the percentage you want to wish to saturate (0 to 100)  \n"
 brightnessPrompt:	 .asciiz "Enter desired brightness percentage (0 to 200)\n"
 shadowfillPrompt:    .asciiz "Enter desired shadow/fill light value (-255 to 255)\n"
@@ -438,7 +438,7 @@ average_loop:
 	#else jump to start of the loop
 	j average_loop
 
-#filter thatconvolves the image with the edge detector kernel		
+#filter that convolves the image with the edge detector kernel		
 edge_detect:
 	move $t6, $s2 	#load image
 	move $t4, $zero
