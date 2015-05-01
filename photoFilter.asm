@@ -19,12 +19,12 @@ filterTimeMessage:	.asciiz "\nFiltering initiated. Although the program appears 
 outName: 		.space  128	#name of the outputted file
 xOffset:			.byte   -1,0,1,-1,0,1,-1,0,1
 yOffset:			.byte   -1,-1,-1,0,0,0,1,1,1
-vEdgeDetect:			.byte	1,2,1,0,0,0,-1,-2,-1	#vertical edge detection mask
-hEdgeDetect:			.byte	1,0,-1,2,0,-2,1,0,-1	#horizontal edge detection mask
-edgeDetect:                     .byte   0,1,0,1,-4,1,0,1,0      #mask to detect all edges
-sharpen:                        .byte   0,-1,0,-1,5,-1,0,-1,0   #mask to sharpen the image
-boxBlur:			.byte   1,1,1,1,1,1,1,1,1	#mask to blur the image
-gaussianBlur:			.byte	1,2,1,2,4,2,1,2,1	#mask using gaussian function to blur image
+vEdgeDetect:			.byte	10,20,10,0,0,0,-10,-20,-10 #mask for vertical edge detection
+hEdgeDetect:			.byte	10,0,-10,20,0,-20,10,0,-10 #mask for horizontal edge detection
+edgeDetect:                     .byte   0,10,0,10,-40,10,0,10,0    #mask to detect all edges
+sharpen:                        .byte   0,-10,0,-10,50,-10,0,-10,0 #mask to sharpen the image
+boxBlur:			.byte   10,10,10,10,10,10,10,10,10 #mask to box blur the image
+gaussianBlur:			.byte	10,20,10,20,40,20,10,20,10 #mask to gaussian blur the image
 
 buffer:			.space	1	# just here so that there are no compile time errors
 
@@ -224,7 +224,7 @@ filter_init:
 	beq $t3, $t4, box_blur
 	
 	addi $t3, $zero, 11
-	beq $t3, $t4, box_blur
+	beq $t3, $t4, gauss_blur
 	
 saturation:
  
