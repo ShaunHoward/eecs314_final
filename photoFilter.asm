@@ -428,7 +428,7 @@ edge_detect:
 	move $t6, $s2 	#load image
 	move $t4, $zero
 	#get the vertical mask
-	lb $t7,vSobel
+	lb $t7,vEdgeDetect
 	j convolution
 	
 convolution:
