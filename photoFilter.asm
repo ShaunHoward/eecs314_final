@@ -176,8 +176,9 @@ read_filter_data:
 ##########################################################################################
 
 #Perform filtering on pixel data
-# $t4 = the type of filter to run (0 for saturation, 1 for grayscale, 2 for sobel edge detection, 
-# 3 for brightness, 4 for hue, 5 for inversion, 6 for shadow fill)
+# $t4 = the type of filter to run (0 for saturation, 1 for grayscale, 2 for edge detection, 
+# 3 for brightness, 4 for hue, 5 for inversion, 6 for shadow fill, 7 for vertical edge detection,
+# 8 for horizontal edge detection, 9 for sharpen, 10 for box blur, and 11 for Gaussian blur)
 filter_init:
 
 	#print length message 
@@ -187,7 +188,7 @@ filter_init:
 
 	la $s3, buffer  #load the address of the buffer into $s3	
 
-	addi $t3, $zero, -1 #no filter, just exit
+	addi $t3, $zero, -1 #no filter, just write input file and exit
 	beq $t3, $t4, nothing 
 	
 	addi $t3, $zero, 0
@@ -226,15 +227,8 @@ filter_init:
 	addi $t3, $zero, 11
 	beq $t3, $t4, gauss_blur
 	
+#saturate each r g b value based on percentage given
 saturation:
- 
-	#saturate each r g b value based on percentage given
-	#min value is 0, max value is 255, use fraction of each value for new value
-	#use base index for 3 values, have constants to determine bit offsets of R,G,B
-        #counter starts at 0, equations like Bi = i + B, Gi = i + G, Ri = i + R
-        #the idea here is to use srl and sll, dumping excess 1's from the MSB
-	#load the current blue pixel value into $t6
-	
 	#print filter percentage string
 	li $v0, 4			# syscall 4, print string
 	la $a0, filterPercent	# load filter selection string
@@ -571,7 +565,7 @@ brightness:
 	li $v0, 4			# syscall 4, print string
 	la $a0, brightnessPrompt	# load filter selection string
 	syscall
-	li $v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer
 	syscall
 	move $t5, $v0
 	addi $s5, $zero, 255
@@ -745,27 +739,26 @@ skipthree_down:
 
 #Initiate hue filter		
 hue:
-	#convert colors into grayscale
 	move $t6, $s2	#load the image
 	move $t4, $zero
 	li $v0, 4			# syscall 4, print string
 	la $a0, redValue	# load filter selection string
 	syscall
-	li $v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer
 	syscall
 	move $t7,$v0
 	
 	li $v0, 4			# syscall 4, print string
 	la $a0, greenValue	# load filter selection string
 	syscall
-	li $v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer
 	syscall
 	move $t8,$v0
 	
 	li $v0, 4			# syscall 4, print string
 	la $a0, blueValue	# load filter selection string
 	syscall
-	li $v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer
 	syscall
 	move $t9,$v0
 	
@@ -841,7 +834,7 @@ shadowfill:
 	li $v0, 4			# syscall 4, print string
 	la $a0, shadowfillPrompt	# load filter selection string
 	syscall
-	li $v0, 5			# syscall 5, read integer (0 to 100)
+	li $v0, 5			# syscall 5, read integer
 	syscall
 	move $t5, $v0
 	addi $s5, $zero, 255
@@ -867,7 +860,7 @@ fill_loop:
 	sll $t9, $t2, 24
 	srl $t9, $t9, 24
 
-# Adds specifed value to RGB values and start capping procedure to cap at 255. Then store the values in the data buffer
+# Adds specifed value to RGB values and start capping procedure to cap at 255. Then store the values in the data buffer.
 	sub $t7, $s5, $t7
 	sub $t8, $s5, $t8
 	sub $t9, $s5, $t9
@@ -932,7 +925,7 @@ shadow_loop:
 	sll $t9, $t2, 24
 	srl $t9, $t9, 24
 	
-# Substracts specifed value from RGB values and start capping procedure to cap at 0. Then store the values in the data buffer
+# Substracts specifed value from RGB values and start capping procedure to cap at 0. Then store the values in the data buffer.
 	blt $t7, $t5, shadowskiponedown
 	sub $t0, $t0, $t5
 	sb $t0, 0($s3)
