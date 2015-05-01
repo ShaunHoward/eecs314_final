@@ -17,11 +17,12 @@ nonBitmapEnteredMessage: .asciiz "\nThe file entered is not a bitmap. Please ent
 outputErrorMessage: .asciiz "\nThe selected output file cannot be created. This likely is a result of having entered a directory that doesn't exist. The program will now restart.\n"
 filterTimeMessage:	.asciiz "\nFiltering initiated. Although the program appears to be unresponsive, it is working. Filtering can take anywhere from a few seconds to a minute, so please be patient.\n"
 outName: 		.space  128	#name of the outputted file
-buffer:			.space	1	# just here so that there are no compile time errors
 xOffset:			.byte   -1,0,1,-1,0,1,-1,0,1
 yOffset:			.byte   -1,-1,-1,0,0,0,1,1,1
 vSobel:			.byte	1,2,1,0,0,0,-1,-2,-1	#vertical mask for Sobel
 hSobel:			.byte	1,0,-1,2,0,-2,1,0,-1	#horizontal mask for Sobel
+buffer:			.space	1	# just here so that there are no compile time errors
+
 
 
 ######################################################################################################
@@ -440,7 +441,8 @@ convolution:
 	
 	subi $t8, $zero, 1
 	j kernel_loop
-	
+
+accumulate:
 	#get blue value of the pixel
 	lb $t0,($t2)
 	sll $t0, $t0, 24
@@ -480,19 +482,19 @@ kernel_loop:
 	addi $t8, $t8, 1
 	
 	#calculate x
-	lbu $t0, xOffset($t8)
+	lb $t0, xOffset($t8)
 	add $t2, $t1, $t0
 	
 	#calculate y
-	lbu $t0, yOffset($t8)
+	lb $t0, yOffset($t8)
 	add $t3, $t5, $t0
 	
 	#check x
 	bge $t2, $s7, kernel_loop
-	blt $t2, $zero, kernel_loop 
+	ble $t2, $zero, kernel_loop 
 	#check y
 	bge $t3, $s4, kernel_loop
-	blt $t3, $zero, kernel_loop 
+	ble $t3, $zero, kernel_loop 
 	
 	mul $t0,$s7,$t3
 	add $t0,$t0,$t2
@@ -503,7 +505,7 @@ kernel_loop:
 	add $t3, $t7, $t8
 	#lb $t3, 0($t3)
 			
-	bne $t8,8,convolution
+	bge $t8,8,accumulate
 	j kernel_loop
 							
 # Initiate brightness filter	
