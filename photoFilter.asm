@@ -188,7 +188,7 @@ filter_init:
 
 	la $s3, buffer  #load the address of the buffer into $s3	
 
-	addi $t3, $zero, -1 #no filter, just exit
+	addi $t3, $zero, -1 #no filter, just write input file and exit
 	beq $t3, $t4, nothing 
 	
 	addi $t3, $zero, 0
@@ -867,7 +867,7 @@ fill_loop:
 	sll $t9, $t2, 24
 	srl $t9, $t9, 24
 
-# Adds specifed value to RGB values and start capping procedure to cap at 255. Then store the values in the data buffer
+# Adds specifed value to RGB values and start capping procedure to cap at 255. Then store the values in the data buffer.
 	sub $t7, $s5, $t7
 	sub $t8, $s5, $t8
 	sub $t9, $s5, $t9
@@ -932,7 +932,7 @@ shadow_loop:
 	sll $t9, $t2, 24
 	srl $t9, $t9, 24
 	
-# Substracts specifed value from RGB values and start capping procedure to cap at 0. Then store the values in the data buffer
+# Substracts specifed value from RGB values and start capping procedure to cap at 0. Then store the values in the data buffer.
 	blt $t7, $t5, shadowskiponedown
 	sub $t0, $t0, $t5
 	sb $t0, 0($s3)
