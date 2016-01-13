@@ -23,8 +23,6 @@ Team:
 
 Shaun Howard, Kevin Perera, Emilio Colindres, Bennett Sherman, and Josh Tang
 
-*pending
-
 Problems our code checks for:
 1.) Invalid filter selection
 2.) Enter a file that doesn't exist
